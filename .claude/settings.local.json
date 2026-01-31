@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:main:*)",
+      "Bash(npm run build:preload:*)",
+      "Bash(npm run build:renderer:*)",
+      "Bash(npx @electron/rebuild:*)",
+      "Bash(npm run build:all:*)",
+      "Bash(npm install:*)",
+      "Bash(cmd //c \"npx @electron/rebuild -f -w node-pty\")",
+      "Bash(cmd //c \"GetCommitHash.bat\")",
+      "Bash(cmd //c \"cd /d C:\\\\Users\\\\joshu\\\\dev\\\\terminal-ide\\\\node_modules\\\\node-pty\\\\deps\\\\winpty\\\\src\\\\shared && GetCommitHash.bat\")",
+      "Bash(cmd //c \"cd /d C:\\\\Users\\\\joshu\\\\dev\\\\terminal-ide\\\\node_modules\\\\node-pty\\\\deps\\\\winpty\\\\src\\\\shared && call GetCommitHash.bat\")",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build:*)",
+      "Bash(npm run build:*)",
+      "Bash(find:*)",
+      "Bash(Get-ChildItem -Path src -Recurse -Filter \"*.js\")",
+      "Bash(Remove-Item -Force)",
+      "Bash(Get-ChildItem -Path src -Recurse -Filter \"*.js.map\")",
+      "Bash(Get-ChildItem -Path src -Recurse -Filter \"*.d.ts\")",
+      "Bash(npx rimraf:*)",
+      "Bash(npm start)",
+      "Bash(git add:*)"
+    ]
+  }
+}
