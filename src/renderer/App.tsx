@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { PaneGrid } from './components/layout/PaneGrid';
+import React, { useState, useEffect } from 'react';
+import { GridLayout } from './components/layout/GridLayout';
 import { SessionSidebar } from './components/sidebar/SessionSidebar';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -8,25 +8,43 @@ import { useLayoutStore } from './stores/layoutStore';
 import { useProjectStore } from './stores/projectStore';
 import type { SessionType } from '../shared/types/session';
 
+// Grid preset options
+const GRID_PRESETS = [
+  { label: '1×1', rows: 1, cols: 1 },
+  { label: '1×2', rows: 1, cols: 2 },
+  { label: '2×2', rows: 2, cols: 2 },
+  { label: '2×3', rows: 2, cols: 3 },
+  { label: '2×4', rows: 2, cols: 4 },
+  { label: '2×5', rows: 2, cols: 5 },
+  { label: '3×3', rows: 3, cols: 3 },
+];
+
 const App: React.FC = () => {
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const pendingPaneIdRef = useRef<string | null>(null);
+  const [pendingPanelId, setPendingPanelId] = useState<string | null>(null);
+  const [isGridDropdownOpen, setGridDropdownOpen] = useState(false);
 
   const currentProject = useProjectStore((state) => state.currentProject);
   const setProject = useProjectStore((state) => state.setProject);
 
   const {
-    panes,
-    addPane,
-    removePane,
-    setSessionForPane,
-    setActivePane,
+    gridConfig,
+    panels,
+    activePanel,
+    setSessionForPanel,
+    setActivePanel,
+    setGridDimensions,
     updateSession,
     removeSession,
     clearSessions,
     setLayout,
     getLayout,
-    activePane,
+    getAllPanels,
+    findPanelBySessionId,
+    getActiveSessionCount,
+    findFirstEmptyPanel,
+    getWorktreeAgent,
+    setWorktreeAgent,
   } = useLayoutStore();
 
   // Load project state on mount
@@ -68,23 +86,22 @@ const App: React.FC = () => {
 
       if (!mounted) return;
 
-      // Clear frontend state and populate with actual backend sessions
+      // Clear frontend state (resets to default grid)
       clearSessions();
-      for (const session of backendSessions) {
-        updateSession(session);
+
+      // Only restore layout if there are actual sessions
+      if (backendSessions.length > 0) {
+        for (const session of backendSessions) {
+          updateSession(session);
+        }
+
+        // Restore layout structure
+        const state = await window.terminalIDE.persistence.restore();
+        if (mounted && state?.layout) {
+          setLayout(state.layout);
+        }
       }
-
-      // Now restore layout
-      const state = await window.terminalIDE.persistence.restore();
-      if (!mounted || !state) return;
-
-      // Only restore layout structure, not sessions
-      // Sessions will be recreated fresh
-      setLayout({
-        panes: state.layout.panes.map(p => ({ ...p, sessionId: undefined })),
-        rows: state.layout.rows,
-        cols: state.layout.cols,
-      });
+      // If no sessions, we keep the empty grid from clearSessions()
     };
 
     syncSessions();
@@ -126,8 +143,16 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleCreateSession = async (config: { type: SessionType; cwd: string; branch?: string }) => {
-    // Default cwd to project path if not specified or empty
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isGridDropdownOpen) return;
+
+    const handleClick = () => setGridDropdownOpen(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [isGridDropdownOpen]);
+
+  const handleCreateSession = async (config: { type: SessionType; cwd: string; branch?: string; agentId?: string }) => {
     const sessionConfig = {
       ...config,
       cwd: config.cwd || currentProject?.path || process.cwd(),
@@ -135,35 +160,50 @@ const App: React.FC = () => {
     const result = await window.terminalIDE.session.create(sessionConfig);
 
     if (result.success && result.session) {
-      let paneId = pendingPaneIdRef.current;
+      let targetPanelId: string | null = null;
 
-      if (!paneId) {
-        paneId = addPane();
+      // If a specific panel was requested (clicking "Create Session" button in empty panel)
+      if (pendingPanelId) {
+        const pendingPanel = panels.find(p => p.id === pendingPanelId);
+        if (pendingPanel && !pendingPanel.sessionId) {
+          targetPanelId = pendingPanelId;
+        }
       }
 
-      setSessionForPane(paneId, result.session.id);
-      updateSession(result.session);
-      pendingPaneIdRef.current = null;
+      // If no target yet, find any empty panel
+      if (!targetPanelId) {
+        const emptyPanel = findFirstEmptyPanel();
+        if (emptyPanel) {
+          targetPanelId = emptyPanel.id;
+        }
+      }
+
+      // If still no target (all panels have sessions), show message
+      if (!targetPanelId) {
+        console.warn('Grid is full. Increase grid size to add more sessions.');
+        // Terminate the session we just created since we can't display it
+        await window.terminalIDE.session.terminate(result.session.id);
+      } else {
+        setSessionForPanel(targetPanelId, result.session.id);
+        updateSession(result.session);
+      }
+
+      setPendingPanelId(null);
     } else {
       console.error('Failed to create session:', result.error);
     }
   };
 
-  const handleNewSession = () => {
-    pendingPaneIdRef.current = null;
-    setDialogOpen(true);
-  };
-
-  const handleCreateSessionForPane = (paneId: string) => {
-    pendingPaneIdRef.current = paneId;
+  const handleCreateSessionForPanel = (panelId: string) => {
+    setPendingPanelId(panelId);
     setDialogOpen(true);
   };
 
   const handleTerminateSession = async (sessionId?: string) => {
     const targetSessionId = sessionId || (() => {
-      if (!activePane) return null;
-      const pane = panes.find((p) => p.id === activePane);
-      return pane?.sessionId || null;
+      // Find active session from active panel
+      const panel = panels.find((p) => p.id === activePanel);
+      return panel?.sessionId || null;
     })();
 
     if (!targetSessionId) return;
@@ -175,38 +215,47 @@ const App: React.FC = () => {
   };
 
   const handleSelectSession = (sessionId: string) => {
-    // Find the pane that has this session and make it active
-    const pane = panes.find(p => p.sessionId === sessionId);
-    if (pane) {
-      setActivePane(pane.id);
+    const panelId = findPanelBySessionId(sessionId);
+    if (panelId) {
+      setActivePanel(panelId);
     }
   };
 
-  const handleClosePane = () => {
-    if (!activePane) return;
+  const handleGridPresetChange = (rows: number, cols: number) => {
+    setGridDimensions(rows, cols);
+  };
 
-    const pane = panes.find((p) => p.id === activePane);
-    if (pane?.sessionId) {
-      // Terminate the session when closing the pane
-      window.terminalIDE.session.terminate(pane.sessionId);
-      removeSession(pane.sessionId);
+  const handleWorktreeDrop = async (panelId: string, worktreeData: { path: string; branch: string }) => {
+    // Check for saved agent preference for this worktree
+    const savedAgentId = getWorktreeAgent(worktreeData.path);
+    let agentId = savedAgentId;
+
+    // Fallback to default agent if no preference saved
+    if (!agentId) {
+      const defaultAgent = await window.terminalIDE.agent.getDefault();
+      agentId = defaultAgent?.id;
     }
-    removePane(activePane);
+
+    const config = {
+      type: 'attached' as const,
+      cwd: worktreeData.path,
+      agentId,
+    };
+
+    const result = await window.terminalIDE.session.create(config);
+    if (result.success && result.session) {
+      // Save agent preference for this worktree
+      if (agentId) {
+        setWorktreeAgent(worktreeData.path, agentId);
+      }
+      setSessionForPanel(panelId, result.session.id);
+      updateSession(result.session);
+    } else {
+      console.error('Failed to create session from worktree drop:', result.error);
+    }
   };
 
-  const handleSplitHorizontal = () => {
-    useLayoutStore.setState((state) => ({
-      cols: Math.min(state.cols + 1, 4),
-    }));
-    addPane();
-  };
-
-  const handleSplitVertical = () => {
-    useLayoutStore.setState((state) => ({
-      rows: Math.min(state.rows + 1, 4),
-    }));
-    addPane();
-  };
+  const activeSessionCount = getActiveSessionCount();
 
   // Show welcome screen if no project is open
   if (!currentProject) {
@@ -221,14 +270,42 @@ const App: React.FC = () => {
     <div className="app">
       <div className="toolbar">
         <span className="toolbar-title">Terminal IDE</span>
-        <button onClick={handleNewSession}>New Session</button>
-        <button onClick={handleSplitHorizontal}>Split H</button>
-        <button onClick={handleSplitVertical}>Split V</button>
-        {activePane && (
-          <>
-            <button onClick={() => handleTerminateSession()}>Terminate</button>
-            <button onClick={handleClosePane}>Close Pane</button>
-          </>
+
+        <div className="grid-selector" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="grid-selector-button"
+            onClick={() => setGridDropdownOpen(!isGridDropdownOpen)}
+          >
+            Grid: {gridConfig.rows}×{gridConfig.cols} ▼
+          </button>
+          {isGridDropdownOpen && (
+            <div className="grid-selector-dropdown">
+              {GRID_PRESETS.map((preset) => {
+                const totalCells = preset.rows * preset.cols;
+                const isDisabled = totalCells < activeSessionCount;
+                const isSelected = preset.rows === gridConfig.rows && preset.cols === gridConfig.cols;
+                return (
+                  <button
+                    key={preset.label}
+                    className={`grid-selector-option ${isSelected ? 'selected' : ''}`}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      handleGridPresetChange(preset.rows, preset.cols);
+                      setGridDropdownOpen(false);
+                    }}
+                    title={isDisabled ? `Cannot shrink: ${activeSessionCount} active sessions` : ''}
+                  >
+                    {preset.label}
+                    {isSelected && ' ✓'}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {activePanel && panels.find(p => p.id === activePanel)?.sessionId && (
+          <button onClick={() => handleTerminateSession()}>Terminate</button>
         )}
       </div>
 
@@ -238,7 +315,13 @@ const App: React.FC = () => {
           onTerminateSession={handleTerminateSession}
         />
         <div className="main-content">
-          <PaneGrid onCreateSession={handleCreateSessionForPane} />
+          <GridLayout
+            panels={panels}
+            config={gridConfig}
+            activePanel={activePanel}
+            onCreateSession={handleCreateSessionForPanel}
+            onWorktreeDrop={handleWorktreeDrop}
+          />
         </div>
       </div>
 

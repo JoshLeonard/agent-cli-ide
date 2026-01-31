@@ -1,119 +1,189 @@
 import { create } from 'zustand';
-import type { LayoutPane, LayoutState, SessionInfo } from '../../shared/types/session';
+import type { SessionInfo } from '../../shared/types/session';
+import type {
+  GridConfig,
+  TerminalPanel,
+  GridLayoutState,
+  PersistedLayoutState,
+  LayoutNode,
+} from '../../shared/types/layout';
+import { isGridLayoutState, isTreeLayoutState, isTerminalPanel } from '../../shared/types/layout';
+
+// Default grid configuration
+const DEFAULT_GRID_CONFIG: GridConfig = {
+  rows: 2,
+  cols: 5,
+};
+
+// Helper to generate unique IDs
+let idCounter = 0;
+const generateId = (prefix: string) => `${prefix}-${++idCounter}-${Date.now()}`;
+
+// Create a default empty panel
+const createEmptyPanel = (): TerminalPanel => ({
+  type: 'panel',
+  id: generateId('panel'),
+  sessionId: null,
+});
+
+// Create initial grid panels
+const createGridPanels = (config: GridConfig): TerminalPanel[] => {
+  const panels: TerminalPanel[] = [];
+  const count = config.rows * config.cols;
+  for (let i = 0; i < count; i++) {
+    panels.push(createEmptyPanel());
+  }
+  return panels;
+};
 
 interface LayoutStore {
-  panes: LayoutPane[];
-  rows: number;
-  cols: number;
-  rowSizes: number[];
-  colSizes: number[];
+  gridConfig: GridConfig;
+  panels: TerminalPanel[];
+  activePanel: string | null;
   sessions: Map<string, SessionInfo>;
-  activePane: string | null;
-  paneIdCounter: number;
+  worktreeAgentPrefs: Map<string, string>; // worktreePath → agentId
 
-  // Actions
-  addPane: (sessionId?: string) => string;
-  removePane: (paneId: string) => void;
-  setSessionForPane: (paneId: string, sessionId: string) => void;
-  setActivePane: (paneId: string | null) => void;
+  // Grid operations
+  setGridDimensions: (rows: number, cols: number) => boolean;
+  initializeGrid: (config: GridConfig) => void;
+
+  // Panel operations
+  clearPanelSession: (panelId: string) => void;
+
+  // Session-to-panel assignment
+  setSessionForPanel: (panelId: string, sessionId: string) => void;
+
+  // Panel activation
+  setActivePanel: (panelId: string | null) => void;
+
+  // Session management
   updateSession: (session: SessionInfo) => void;
   removeSession: (sessionId: string) => void;
   clearSessions: () => void;
-  setLayout: (layout: LayoutState) => void;
-  getLayout: () => LayoutState;
   setSessions: (sessions: SessionInfo[]) => void;
-  setRowSizes: (sizes: number[]) => void;
-  setColSizes: (sizes: number[]) => void;
+
+  // Utilities
+  findPanelBySessionId: (sessionId: string) => string | null;
+  findPanelById: (panelId: string) => TerminalPanel | null;
+  getLayout: () => GridLayoutState;
+  setLayout: (layout: PersistedLayoutState) => void;
+  getAllPanels: () => TerminalPanel[];
+  getActiveSessionCount: () => number;
+  findFirstEmptyPanel: () => TerminalPanel | null;
+
+  // Worktree agent preferences
+  getWorktreeAgent: (worktreePath: string) => string | undefined;
+  setWorktreeAgent: (worktreePath: string, agentId: string) => void;
 }
 
+// Helper to collect panels from legacy tree structure
+function collectPanelsFromTree(node: LayoutNode): TerminalPanel[] {
+  if (isTerminalPanel(node)) {
+    return [node];
+  }
+  return node.children.flatMap(collectPanelsFromTree);
+}
+
+// Load worktree agent preferences from localStorage
+const loadWorktreeAgentPrefs = (): Map<string, string> => {
+  try {
+    const stored = localStorage.getItem('worktreeAgentPrefs');
+    if (stored) {
+      return new Map(JSON.parse(stored));
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return new Map();
+};
+
+// Save worktree agent preferences to localStorage
+const saveWorktreeAgentPrefs = (prefs: Map<string, string>) => {
+  try {
+    localStorage.setItem('worktreeAgentPrefs', JSON.stringify(Array.from(prefs.entries())));
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 export const useLayoutStore = create<LayoutStore>((set, get) => ({
-  panes: [],
-  rows: 1,
-  cols: 1,
-  rowSizes: [1],
-  colSizes: [1],
+  gridConfig: DEFAULT_GRID_CONFIG,
+  panels: createGridPanels(DEFAULT_GRID_CONFIG),
+  activePanel: null,
   sessions: new Map(),
-  activePane: null,
-  paneIdCounter: 0,
+  worktreeAgentPrefs: loadWorktreeAgentPrefs(),
 
-  addPane: (sessionId?: string) => {
+  setGridDimensions: (rows: number, cols: number) => {
     const state = get();
-    const newCounter = state.paneIdCounter + 1;
-    const id = `pane-${newCounter}-${Date.now()}`;
-    const { panes, cols, rows, rowSizes, colSizes } = state;
+    const newCount = rows * cols;
+    const activeCount = state.panels.filter(p => p.sessionId !== null).length;
 
-    // Calculate position for new pane
-    let row = 0;
-    let col = 0;
-
-    if (panes.length > 0) {
-      // Simple layout: fill row by row
-      const panesPerRow = cols;
-      const index = panes.length;
-      row = Math.floor(index / panesPerRow);
-      col = index % panesPerRow;
+    // Prevent shrinking below active session count
+    if (newCount < activeCount) {
+      return false;
     }
 
-    const newPane: LayoutPane = {
-      id,
-      sessionId,
-      row,
-      col,
-    };
+    const newConfig: GridConfig = { rows, cols };
+    let newPanels: TerminalPanel[];
 
-    // Update rows if needed
-    const newRows = row >= rows ? row + 1 : rows;
-
-    // Extend row sizes if new row added
-    let newRowSizes = rowSizes;
-    if (newRows > rows) {
-      // Redistribute sizes equally when adding a new row
-      const equalSize = 1 / newRows;
-      newRowSizes = Array(newRows).fill(equalSize);
+    if (newCount > state.panels.length) {
+      // Growing: keep existing panels and add new empty ones
+      newPanels = [...state.panels];
+      while (newPanels.length < newCount) {
+        newPanels.push(createEmptyPanel());
+      }
+    } else if (newCount < state.panels.length) {
+      // Shrinking: collect active sessions and redistribute
+      const activePanels = state.panels.filter(p => p.sessionId !== null);
+      const emptyNeeded = newCount - activePanels.length;
+      newPanels = [...activePanels];
+      for (let i = 0; i < emptyNeeded; i++) {
+        newPanels.push(createEmptyPanel());
+      }
+    } else {
+      // Same count, just update config
+      newPanels = state.panels;
     }
 
+    set({ gridConfig: newConfig, panels: newPanels });
+    return true;
+  },
+
+  initializeGrid: (config: GridConfig) => {
     set({
-      panes: [...panes, newPane],
-      activePane: id,
-      paneIdCounter: newCounter,
-      rows: newRows,
-      rowSizes: newRowSizes,
-    });
-
-    return id;
-  },
-
-  removePane: (paneId: string) => {
-    set((state) => {
-      const newPanes = state.panes.filter((p) => p.id !== paneId);
-      return {
-        panes: newPanes,
-        activePane: state.activePane === paneId
-          ? (newPanes[0]?.id || null)
-          : state.activePane,
-      };
+      gridConfig: config,
+      panels: createGridPanels(config),
+      activePanel: null,
     });
   },
 
-  setSessionForPane: (paneId: string, sessionId: string) => {
+  clearPanelSession: (panelId: string) => {
     set((state) => {
-      // Check if pane exists
-      const paneExists = state.panes.some(p => p.id === paneId);
-      if (!paneExists) {
-        console.warn(`setSessionForPane: pane ${paneId} not found`);
-        return state;
+      const panel = state.panels.find(p => p.id === panelId);
+      if (panel?.sessionId) {
+        window.terminalIDE.session.terminate(panel.sessionId);
       }
 
-      return {
-        panes: state.panes.map((p) =>
-          p.id === paneId ? { ...p, sessionId } : p
-        ),
-      };
+      const newPanels = state.panels.map(p =>
+        p.id === panelId ? { ...p, sessionId: null } : p
+      );
+
+      return { panels: newPanels };
     });
   },
 
-  setActivePane: (paneId: string | null) => {
-    set({ activePane: paneId });
+  setSessionForPanel: (panelId: string, sessionId: string) => {
+    set((state) => {
+      const newPanels = state.panels.map(p =>
+        p.id === panelId ? { ...p, sessionId } : p
+      );
+
+      return { panels: newPanels, activePanel: panelId };
+    });
+  },
+
+  setActivePanel: (panelId: string | null) => {
+    set({ activePanel: panelId });
   },
 
   updateSession: (session: SessionInfo) => {
@@ -128,43 +198,22 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     set((state) => {
       const newSessions = new Map(state.sessions);
       newSessions.delete(sessionId);
-      return {
-        sessions: newSessions,
-        panes: state.panes.map((p) =>
-          p.sessionId === sessionId ? { ...p, sessionId: undefined } : p
-        ),
-      };
+
+      // Find panel with this session and clear its sessionId
+      const newPanels = state.panels.map(p =>
+        p.sessionId === sessionId ? { ...p, sessionId: null } : p
+      );
+
+      return { sessions: newSessions, panels: newPanels };
     });
   },
 
   clearSessions: () => {
     set((state) => ({
       sessions: new Map(),
-      panes: state.panes.map((p) => ({ ...p, sessionId: undefined })),
+      panels: createGridPanels(state.gridConfig),
+      activePanel: null,
     }));
-  },
-
-  setLayout: (layout: LayoutState) => {
-    // Backward compatibility: default to equal sizing if sizes missing
-    const rowSizes = layout.rowSizes && layout.rowSizes.length === layout.rows
-      ? layout.rowSizes
-      : Array(layout.rows).fill(1 / layout.rows);
-    const colSizes = layout.colSizes && layout.colSizes.length === layout.cols
-      ? layout.colSizes
-      : Array(layout.cols).fill(1 / layout.cols);
-
-    set({
-      panes: layout.panes,
-      rows: layout.rows,
-      cols: layout.cols,
-      rowSizes,
-      colSizes,
-    });
-  },
-
-  getLayout: () => {
-    const { panes, rows, cols, rowSizes, colSizes } = get();
-    return { panes, rows, cols, rowSizes, colSizes };
   },
 
   setSessions: (sessions: SessionInfo[]) => {
@@ -173,11 +222,100 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     set({ sessions: sessionMap });
   },
 
-  setRowSizes: (sizes: number[]) => {
-    set({ rowSizes: sizes });
+  findPanelBySessionId: (sessionId: string) => {
+    const panel = get().panels.find(p => p.sessionId === sessionId);
+    return panel?.id || null;
   },
 
-  setColSizes: (sizes: number[]) => {
-    set({ colSizes: sizes });
+  findPanelById: (panelId: string) => {
+    return get().panels.find(p => p.id === panelId) || null;
+  },
+
+  getLayout: (): GridLayoutState => {
+    const state = get();
+    return {
+      version: 3,
+      config: state.gridConfig,
+      panels: state.panels,
+    };
+  },
+
+  setLayout: (layout: PersistedLayoutState) => {
+    if (isGridLayoutState(layout)) {
+      // New grid format
+      set({
+        gridConfig: layout.config,
+        panels: layout.panels,
+      });
+    } else if (isTreeLayoutState(layout)) {
+      // Migrate from tree layout (version 2)
+      const treePanels = collectPanelsFromTree(layout.root);
+      const activePanels = treePanels.filter(p => p.sessionId !== null);
+
+      // Create a grid that fits all active sessions
+      const config = { ...DEFAULT_GRID_CONFIG };
+      const totalCells = config.rows * config.cols;
+
+      // Create new panels array
+      const newPanels: TerminalPanel[] = [];
+
+      // First, add panels with active sessions
+      for (const panel of activePanels) {
+        newPanels.push({ ...panel, id: generateId('panel') });
+      }
+
+      // Fill remaining cells with empty panels
+      while (newPanels.length < totalCells) {
+        newPanels.push(createEmptyPanel());
+      }
+
+      set({ gridConfig: config, panels: newPanels });
+    } else {
+      // Migrate from legacy grid layout (version 1)
+      const sessionsWithPanes = layout.panes.filter(p => p.sessionId);
+      const config = { ...DEFAULT_GRID_CONFIG };
+      const totalCells = config.rows * config.cols;
+
+      const newPanels: TerminalPanel[] = [];
+
+      for (const pane of sessionsWithPanes) {
+        newPanels.push({
+          type: 'panel',
+          id: generateId('panel'),
+          sessionId: pane.sessionId || null,
+        });
+      }
+
+      while (newPanels.length < totalCells) {
+        newPanels.push(createEmptyPanel());
+      }
+
+      set({ gridConfig: config, panels: newPanels });
+    }
+  },
+
+  getAllPanels: () => {
+    return get().panels;
+  },
+
+  getActiveSessionCount: () => {
+    return get().panels.filter(p => p.sessionId !== null).length;
+  },
+
+  findFirstEmptyPanel: () => {
+    return get().panels.find(p => p.sessionId === null) || null;
+  },
+
+  getWorktreeAgent: (worktreePath: string) => {
+    return get().worktreeAgentPrefs.get(worktreePath);
+  },
+
+  setWorktreeAgent: (worktreePath: string, agentId: string) => {
+    set((state) => {
+      const newPrefs = new Map(state.worktreeAgentPrefs);
+      newPrefs.set(worktreePath, agentId);
+      saveWorktreeAgentPrefs(newPrefs);
+      return { worktreeAgentPrefs: newPrefs };
+    });
   },
 }));
