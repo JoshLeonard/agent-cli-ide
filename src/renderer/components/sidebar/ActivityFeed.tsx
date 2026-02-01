@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useActivityFeedStore } from '../../stores/activityFeedStore';
 import { useLayoutStore } from '../../stores/layoutStore';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { ActivityEvent, ActivityType, ActivitySeverity } from '../../../shared/types/activity';
 import './ActivityFeed.css';
 
@@ -36,6 +37,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ onSelectSession }) =
   const { sessions } = useLayoutStore();
 
   const [showFilters, setShowFilters] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Load initial events
@@ -64,15 +66,21 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ onSelectSession }) =
     return unsubscribe;
   }, [addEvent]);
 
-  const handleClearAll = useCallback(async () => {
-    if (!confirm('Clear all activity events?')) {
-      focusActiveTerminal();
-      return;
-    }
+  const handleClearAll = useCallback(() => {
+    setShowClearConfirm(true);
+  }, []);
+
+  const handleConfirmClear = useCallback(async () => {
+    setShowClearConfirm(false);
     await window.terminalIDE.activity.clearEvents();
     clearEvents();
     focusActiveTerminal();
   }, [clearEvents]);
+
+  const handleCancelClear = useCallback(() => {
+    setShowClearConfirm(false);
+    focusActiveTerminal();
+  }, []);
 
   const formatTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -250,6 +258,16 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ onSelectSession }) =
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Clear Activity"
+        message="Clear all activity events?"
+        confirmLabel="Clear"
+        variant="danger"
+        onConfirm={handleConfirmClear}
+        onCancel={handleCancelClear}
+      />
     </div>
   );
 };

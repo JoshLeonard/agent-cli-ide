@@ -5,6 +5,7 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { StatusBar } from './components/StatusBar';
 import { QuickSendDialog } from './components/messaging/QuickSendDialog';
+import { ToastContainer } from './components/ui/Toast';
 import { useLayoutStore } from './stores/layoutStore';
 import { useProjectStore } from './stores/projectStore';
 import { useMessagingStore } from './stores/messagingStore';
@@ -401,6 +402,7 @@ const App: React.FC = () => {
       />
 
       <QuickSendDialog />
+      <ToastContainer />
     </div>
   );
 };

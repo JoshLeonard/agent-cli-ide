@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useActivityFeedStore } from '../../stores/activityFeedStore';
+import { useToastStore } from '../../stores/toastStore';
 import { SessionStatusBadge } from './SessionStatusBadge';
 import { ActivityFeed } from './ActivityFeed';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { SessionInfo } from '../../../shared/types/session';
 import type { WorktreeInfo } from '../../../shared/types/ipc';
 import type { AgentStatus } from '../../../shared/types/agentStatus';
@@ -30,6 +32,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 }) => {
   const { sessions, activePanel, getAllPanels, agentStatuses, updateAgentStatus } = useLayoutStore();
   const { currentProject } = useProjectStore();
+  const { showToast } = useToastStore();
 
   const { events } = useActivityFeedStore();
 
@@ -45,6 +48,28 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const [worktreesLoading, setWorktreesLoading] = useState(false);
   const [worktreesError, setWorktreesError] = useState<string | null>(null);
   const [isGitRepo, setIsGitRepo] = useState<boolean | null>(null);
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: 'default' | 'danger';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirm',
+    variant: 'default',
+    onConfirm: () => {},
+  });
+
+  const closeConfirmDialog = useCallback(() => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+    focusActiveTerminal();
+  }, []);
 
   // Get the active session ID from the active panel
   const panels = getAllPanels();
@@ -119,62 +144,68 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   };
 
   // Handle worktree delete
-  const handleDeleteWorktree = async (worktree: WorktreeInfo) => {
+  const handleDeleteWorktree = useCallback((worktree: WorktreeInfo) => {
     const activeSession = getWorktreeSession(worktree.path);
 
-    let confirmMessage = `Delete worktree for branch '${worktree.branch}'?\n\nPath: ${worktree.path}`;
+    let confirmMessage = `Delete worktree for branch '${worktree.branch}'?`;
     if (activeSession) {
-      confirmMessage = `This worktree has an active terminal session.\nDeleting it will also close the terminal.\n\nDelete worktree for branch '${worktree.branch}'?`;
+      confirmMessage = `This worktree has an active terminal session. Deleting it will also close the terminal.`;
     }
 
-    if (!confirm(confirmMessage)) {
-      focusActiveTerminal();
-      return;
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Worktree',
+      message: confirmMessage,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          // Terminate session first if exists (backend now waits for process exit)
+          if (activeSession) {
+            await onTerminateSession(activeSession.id);
+          }
 
-    try {
-      // Terminate session first if exists (backend now waits for process exit)
-      if (activeSession) {
-        await onTerminateSession(activeSession.id);
-        // No delay needed - terminateSession waits for process exit
-      }
+          const result = await window.terminalIDE.worktree.remove(worktree.path);
+          if (!result.success) {
+            console.warn(`Worktree deletion pending: ${result.error}`);
+          }
 
-      const result = await window.terminalIDE.worktree.remove(worktree.path);
-      if (!result.success) {
-        // Show warning but don't block - cleanup will happen later
-        console.warn(`Worktree deletion pending: ${result.error}`);
-      }
-
-      // Refresh worktrees list
-      await loadWorktrees();
-    } catch (error) {
-      alert(`Error removing worktree: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    focusActiveTerminal();
-  };
+          // Refresh worktrees list
+          await loadWorktrees();
+        } catch (error) {
+          showToast(`Error removing worktree: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+        }
+        focusActiveTerminal();
+      },
+    });
+  }, [getWorktreeSession, onTerminateSession, loadWorktrees, showToast]);
 
   // Handle clean orphaned worktrees
-  const handleCleanOrphaned = async () => {
-    if (!confirm('Remove all orphaned worktrees (worktrees without active sessions)?')) {
-      focusActiveTerminal();
-      return;
-    }
-
-    try {
-      const cleaned = await window.terminalIDE.worktree.cleanOrphaned();
-      if (cleaned.length > 0) {
-        alert(`Cleaned ${cleaned.length} orphaned worktree(s)`);
-      } else {
-        alert('No orphaned worktrees found');
-      }
-      await loadWorktrees();
-    } catch (error) {
-      alert(`Error cleaning worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    focusActiveTerminal();
-  };
+  const handleCleanOrphaned = useCallback(() => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Clean Orphaned Worktrees',
+      message: 'Remove all orphaned worktrees (worktrees without active sessions)?',
+      confirmLabel: 'Clean',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          const cleaned = await window.terminalIDE.worktree.cleanOrphaned();
+          if (cleaned.length > 0) {
+            showToast(`Cleaned ${cleaned.length} orphaned worktree(s)`, 'success');
+          } else {
+            showToast('No orphaned worktrees found', 'info');
+          }
+          await loadWorktrees();
+        } catch (error) {
+          showToast(`Error cleaning worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+        }
+        focusActiveTerminal();
+      },
+    });
+  }, [loadWorktrees, showToast]);
 
   const getStatusColor = (status: SessionInfo['status']) => {
     switch (status) {
@@ -424,6 +455,16 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+      />
     </div>
   );
 };
