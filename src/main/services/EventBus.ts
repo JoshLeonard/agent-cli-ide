@@ -73,4 +73,12 @@ export const Events = {
   WORKTREE_CHANGED: 'worktree:changed',
   HOOK_STATE_CHANGED: 'hook:stateChanged',
   SETTINGS_UPDATED: 'settings:updated',
+
+  // Debug events
+  DEBUG_SESSION_CREATED: 'debug:sessionCreated',
+  DEBUG_SESSION_STATE_CHANGED: 'debug:sessionStateChanged',
+  DEBUG_CONSOLE_MESSAGE: 'debug:consoleMessage',
+  DEBUG_EXCEPTION: 'debug:exception',
+  DEBUG_BREAKPOINT_HIT: 'debug:breakpointHit',
+  DEBUG_VARIABLES_UPDATED: 'debug:variablesUpdated',
 } as const;

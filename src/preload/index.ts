@@ -237,6 +237,73 @@ const api = {
     revertFile: (sessionId: string, filePath: string): Promise<FileRevertResult> =>
       ipcRenderer.invoke('fileReview:revertFile', { sessionId, filePath }),
   },
+
+  // Debug
+  debug: {
+    // Session management
+    attach: (sessionId: string, config: { protocol: string; host?: string; port?: number; language?: string }) =>
+      ipcRenderer.invoke('debug:attach', { sessionId, config }),
+    detach: (sessionId: string) =>
+      ipcRenderer.invoke('debug:detach', { sessionId }),
+    getSession: (sessionId: string) =>
+      ipcRenderer.invoke('debug:getSession', { sessionId }),
+    getAllSessions: () =>
+      ipcRenderer.invoke('debug:getAllSessions'),
+
+    // Queries
+    getConsoleMessages: (filter: {
+      sessionIds?: string[];
+      levels?: ('log' | 'info' | 'warn' | 'error' | 'debug')[];
+      fromTimestamp?: number;
+      toTimestamp?: number;
+      limit?: number;
+      offset?: number;
+    }) =>
+      ipcRenderer.invoke('debug:getConsoleMessages', filter),
+    getExceptions: (filter: {
+      sessionIds?: string[];
+      fromTimestamp?: number;
+      toTimestamp?: number;
+      limit?: number;
+      offset?: number;
+    }) =>
+      ipcRenderer.invoke('debug:getExceptions', filter),
+    getCallStack: (sessionId: string) =>
+      ipcRenderer.invoke('debug:getCallStack', { sessionId }),
+    getScopes: (sessionId: string, frameId: number) =>
+      ipcRenderer.invoke('debug:getScopes', { sessionId, frameId }),
+    getVariables: (sessionId: string, variablesReference: number) =>
+      ipcRenderer.invoke('debug:getVariables', { sessionId, variablesReference }),
+
+    // Breakpoints
+    setBreakpoints: (sessionId: string, source: string, breakpoints: { line: number; condition?: string }[]) =>
+      ipcRenderer.invoke('debug:setBreakpoints', { sessionId, source, breakpoints }),
+    removeBreakpoint: (sessionId: string, breakpointId: string) =>
+      ipcRenderer.invoke('debug:removeBreakpoint', { sessionId, breakpointId }),
+
+    // Execution controls
+    continue: (sessionId: string) =>
+      ipcRenderer.invoke('debug:continue', { sessionId }),
+    pause: (sessionId: string) =>
+      ipcRenderer.invoke('debug:pause', { sessionId }),
+    stepOver: (sessionId: string) =>
+      ipcRenderer.invoke('debug:stepOver', { sessionId }),
+    stepInto: (sessionId: string) =>
+      ipcRenderer.invoke('debug:stepInto', { sessionId }),
+    stepOut: (sessionId: string) =>
+      ipcRenderer.invoke('debug:stepOut', { sessionId }),
+
+    // Evaluation
+    evaluate: (sessionId: string, expression: string, frameId?: number) =>
+      ipcRenderer.invoke('debug:evaluate', { sessionId, expression, frameId }),
+
+    // Events
+    onSessionCreated: createEventSubscriber('debug:sessionCreated'),
+    onSessionStateChanged: createEventSubscriber('debug:sessionStateChanged'),
+    onConsoleMessage: createEventSubscriber('debug:consoleMessage'),
+    onException: createEventSubscriber('debug:exception'),
+    onBreakpointHit: createEventSubscriber('debug:breakpointHit'),
+  },
 };
 
 contextBridge.exposeInMainWorld('terminalIDE', api);

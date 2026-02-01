@@ -7,6 +7,7 @@ import { claudeHooksManager } from '../services/ClaudeHooksManager';
 import { settingsService } from '../services/SettingsService';
 import { worktreeWatcherService } from '../services/WorktreeWatcherService';
 import { messagingService } from '../services/MessagingService';
+import { debuggerService } from '../services/DebuggerService';
 
 import {
   registerSessionHandlers,
@@ -29,6 +30,8 @@ import {
   unregisterEventForwarders,
   registerFileReviewHandlers,
   unregisterFileReviewHandlers,
+  registerDebugHandlers,
+  unregisterDebugHandlers,
 } from './handlers/index';
 
 export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<void> {
@@ -39,6 +42,7 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
   hookStateWatcherService.initialize();
   await claudeHooksManager.initialize();
   await settingsService.initialize();
+  debuggerService.initialize();
 
   // Register all domain handlers
   registerSessionHandlers();
@@ -50,6 +54,7 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
   registerWindowHandlers(mainWindow);
   registerSettingsHandlers();
   registerFileReviewHandlers();
+  registerDebugHandlers();
 
   // Forward events from main process to renderer
   registerEventForwarders(mainWindow);
@@ -66,6 +71,7 @@ export function unregisterIpcHandlers(): void {
   worktreeWatcherService.shutdown();
   messagingService.shutdown();
   hookStateWatcherService.shutdown();
+  debuggerService.shutdown();
 
   // Unregister all domain handlers
   unregisterSessionHandlers();
@@ -77,4 +83,5 @@ export function unregisterIpcHandlers(): void {
   unregisterWindowHandlers();
   unregisterSettingsHandlers();
   unregisterFileReviewHandlers();
+  unregisterDebugHandlers();
 }

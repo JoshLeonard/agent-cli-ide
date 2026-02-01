@@ -60,6 +60,23 @@ export function registerEventForwarders(mainWindow: BrowserWindow): void {
   eventSubscriptions.push(
     createEventForwarder(mainWindow, Events.SETTINGS_UPDATED, 'settings:updated')
   );
+
+  // Debug events
+  eventSubscriptions.push(
+    createEventForwarder(mainWindow, Events.DEBUG_SESSION_CREATED, 'debug:sessionCreated')
+  );
+  eventSubscriptions.push(
+    createEventForwarder(mainWindow, Events.DEBUG_SESSION_STATE_CHANGED, 'debug:sessionStateChanged')
+  );
+  eventSubscriptions.push(
+    createEventForwarder(mainWindow, Events.DEBUG_CONSOLE_MESSAGE, 'debug:consoleMessage')
+  );
+  eventSubscriptions.push(
+    createEventForwarder(mainWindow, Events.DEBUG_EXCEPTION, 'debug:exception')
+  );
+  eventSubscriptions.push(
+    createEventForwarder(mainWindow, Events.DEBUG_BREAKPOINT_HIT, 'debug:breakpointHit')
+  );
 }
 
 export function unregisterEventForwarders(): void {

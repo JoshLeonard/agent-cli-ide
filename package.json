@@ -16,6 +16,7 @@
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
+    "chrome-remote-interface": "^0.33.3",
     "monaco-editor": "^0.45.0",
     "node-pty": "^1.0.0",
     "uuid": "^9.0.0",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
+    "@types/chrome-remote-interface": "^0.33.0",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

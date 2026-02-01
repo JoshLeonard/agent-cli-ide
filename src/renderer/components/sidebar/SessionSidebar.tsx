@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useActivityFeedStore } from '../../stores/activityFeedStore';
+import { useDebuggerStore } from '../../stores/debuggerStore';
 import { useToastStore } from '../../stores/toastStore';
 import { SessionStatusBadge } from './SessionStatusBadge';
 import { ActivityFeed } from './ActivityFeed';
+import { DebugPanel } from '../debug/DebugPanel';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { focusActiveTerminal } from '../../utils/terminal';
 import type { SessionInfo } from '../../../shared/types/session';
@@ -13,6 +15,7 @@ import type { AgentStatus } from '../../../shared/types/agentStatus';
 import './SessionSidebar.css';
 import './SessionStatusBadge.css';
 import './ActivityFeed.css';
+import '../debug/DebugPanel.css';
 
 interface SessionSidebarProps {
   onSelectSession: (sessionId: string) => void;
@@ -28,11 +31,13 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const { showToast } = useToastStore();
 
   const { events } = useActivityFeedStore();
+  const { sessions: debugSessions } = useDebuggerStore();
 
   // Accordion state
   const [expandedSections, setExpandedSections] = useState({
     sessions: true,
     activity: false,
+    debug: false,
     worktrees: false,
   });
 
@@ -72,7 +77,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   // Convert sessions map to array
   const sessionList = Array.from(sessions.values());
 
-  const toggleSection = (section: 'sessions' | 'activity' | 'worktrees') => {
+  const toggleSection = (section: 'sessions' | 'activity' | 'debug' | 'worktrees') => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section],
@@ -369,6 +374,25 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
 
         <div className={`accordion-content ${expandedSections.activity ? 'expanded' : ''}`}>
           <ActivityFeed onSelectSession={onSelectSession} />
+        </div>
+      </div>
+
+      {/* Debug Section */}
+      <div className="accordion-section">
+        <button
+          className="accordion-header"
+          onClick={() => toggleSection('debug')}
+          aria-expanded={expandedSections.debug}
+        >
+          <span className="accordion-toggle">
+            {expandedSections.debug ? '\u25BC' : '\u25B6'}
+          </span>
+          <span className="accordion-title">DEBUG</span>
+          <span className="accordion-count">{debugSessions.size}</span>
+        </button>
+
+        <div className={`accordion-content ${expandedSections.debug ? 'expanded' : ''}`}>
+          <DebugPanel onSelectSession={onSelectSession} />
         </div>
       </div>
 

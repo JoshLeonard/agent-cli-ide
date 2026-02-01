@@ -15,6 +15,17 @@ import type {
   FileRevertRequest,
   FileRevertResult,
 } from './fileReview';
+import type {
+  DebugAttachConfig,
+  DebugSessionInfo,
+  DebugSessionState,
+  DebugEventFilter,
+  DebugConsoleMessage,
+  DebugException,
+  DebugVariable,
+  DebugBreakpoint,
+  StackFrame,
+} from './debug';
 
 export interface RecentProject {
   path: string;
@@ -223,6 +234,84 @@ export interface IpcChannels {
     request: FileRevertRequest;
     response: FileRevertResult;
   };
+
+  // Debug session management
+  'debug:attach': {
+    request: { sessionId: string; config: DebugAttachConfig };
+    response: { success: boolean; debugSessionId?: string; error?: string };
+  };
+  'debug:detach': {
+    request: { sessionId: string };
+    response: { success: boolean; error?: string };
+  };
+  'debug:getSession': {
+    request: { sessionId: string };
+    response: DebugSessionInfo | null;
+  };
+  'debug:getAllSessions': {
+    request: void;
+    response: DebugSessionInfo[];
+  };
+
+  // Debug queries
+  'debug:getConsoleMessages': {
+    request: DebugEventFilter;
+    response: DebugConsoleMessage[];
+  };
+  'debug:getExceptions': {
+    request: DebugEventFilter;
+    response: DebugException[];
+  };
+  'debug:getCallStack': {
+    request: { sessionId: string };
+    response: StackFrame[];
+  };
+  'debug:getScopes': {
+    request: { sessionId: string; frameId: number };
+    response: { scopes: { name: string; variablesReference: number }[] };
+  };
+  'debug:getVariables': {
+    request: { sessionId: string; variablesReference: number };
+    response: DebugVariable[];
+  };
+
+  // Breakpoint management
+  'debug:setBreakpoints': {
+    request: { sessionId: string; source: string; breakpoints: { line: number; condition?: string }[] };
+    response: { breakpoints: DebugBreakpoint[] };
+  };
+  'debug:removeBreakpoint': {
+    request: { sessionId: string; breakpointId: string };
+    response: { success: boolean };
+  };
+
+  // Execution controls
+  'debug:continue': {
+    request: { sessionId: string };
+    response: { success: boolean; error?: string };
+  };
+  'debug:pause': {
+    request: { sessionId: string };
+    response: { success: boolean; error?: string };
+  };
+  'debug:stepOver': {
+    request: { sessionId: string };
+    response: { success: boolean; error?: string };
+  };
+  'debug:stepInto': {
+    request: { sessionId: string };
+    response: { success: boolean; error?: string };
+  };
+  'debug:stepOut': {
+    request: { sessionId: string };
+    response: { success: boolean; error?: string };
+  };
+
+  // Expression evaluation
+  'debug:evaluate': {
+    request: { sessionId: string; expression: string; frameId?: number };
+    response: { result: string; type?: string; variablesReference?: number; error?: string };
+  };
 }
 
 // Event channels (send/on)
@@ -262,6 +351,28 @@ export interface IpcEvents {
   };
   'settings:updated': {
     settings: Settings;
+  };
+
+  // Debug events
+  'debug:sessionCreated': {
+    session: DebugSessionInfo;
+  };
+  'debug:sessionStateChanged': {
+    sessionId: string;
+    state: DebugSessionState;
+    pausedAt?: DebugSessionInfo['pausedAt'];
+    callStack?: StackFrame[];
+  };
+  'debug:consoleMessage': {
+    message: DebugConsoleMessage;
+  };
+  'debug:exception': {
+    exception: DebugException;
+  };
+  'debug:breakpointHit': {
+    sessionId: string;
+    breakpoint: DebugBreakpoint;
+    callStack: StackFrame[];
   };
 }
 
