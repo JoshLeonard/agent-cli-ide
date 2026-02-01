@@ -164,7 +164,8 @@ export class SessionRegistry {
         sessionCwd
       );
 
-      await session.start();
+      // Pass isRestored flag so Claude Code uses --continue
+      await session.start({ isRestored: true });
 
       const sessionInfo = session.toInfo();
       eventBus.emit(Events.SESSION_CREATED, {
