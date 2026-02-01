@@ -21,6 +21,7 @@ import {
   useFileReview,
 } from './hooks';
 import { FileReviewModal } from './components/review/FileReviewModal';
+import { GitPanel } from './components/git/GitPanel';
 import type { SessionType } from '../shared/types/session';
 import './components/messaging/QuickSendDialog.css';
 
@@ -297,6 +298,7 @@ const App: React.FC = () => {
         onCancel={handleCancelMoveSession}
       />
       <FileReviewModal />
+      <GitPanel />
     </div>
   );
 };
