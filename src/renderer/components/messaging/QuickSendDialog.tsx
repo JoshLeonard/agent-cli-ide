@@ -171,22 +171,31 @@ export const QuickSendDialog: React.FC<QuickSendDialogProps> = ({ onClose }) => 
               {availableSessions.length === 0 ? (
                 <div className="no-sessions">No other running sessions</div>
               ) : (
-                availableSessions.map(session => (
-                  <label key={session.id} className="session-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedSessions.includes(session.id) || isBroadcast}
-                      onChange={() => handleToggleSession(session.id)}
-                      disabled={isBroadcast}
-                    />
-                    <span className="session-info">
-                      {session.agentIcon && <span className="agent-icon">{session.agentIcon}</span>}
-                      <span className="session-name">
-                        {session.agentName || session.id.slice(0, 8)}
+                availableSessions.map(session => {
+                  // Get branch name or last segment of cwd as secondary identifier
+                  const secondaryInfo = session.branch || (session.cwd ? session.cwd.split(/[/\\]/).pop() : null);
+                  return (
+                    <label key={session.id} className="session-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedSessions.includes(session.id) || isBroadcast}
+                        onChange={() => handleToggleSession(session.id)}
+                        disabled={isBroadcast}
+                      />
+                      <span className="session-info session-info-multiline">
+                        {session.agentIcon && <span className="agent-icon">{session.agentIcon}</span>}
+                        <span className="session-details">
+                          <span className="session-name">
+                            {session.agentName || 'Terminal'}
+                          </span>
+                          {secondaryInfo && (
+                            <span className="session-branch">({secondaryInfo})</span>
+                          )}
+                        </span>
                       </span>
-                    </span>
-                  </label>
-                ))
+                    </label>
+                  );
+                })
               )}
             </div>
           </div>

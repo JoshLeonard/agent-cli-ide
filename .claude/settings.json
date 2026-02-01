@@ -63,6 +63,15 @@
             "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 1799ef60-f940-46a4-a829-4dcdeb6f38d5"
           }
         ]
+      },
+      {
+        "matcher": "terminal-ide-state-hook",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 0b6e6000-877b-4c06-85da-d97f5a156678"
+          }
+        ]
       }
     ],
     "Notification": [
@@ -128,6 +137,15 @@
             "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" waiting 1799ef60-f940-46a4-a829-4dcdeb6f38d5"
           }
         ]
+      },
+      {
+        "matcher": "terminal-ide-state-hook",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" waiting 0b6e6000-877b-4c06-85da-d97f5a156678"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -191,6 +209,15 @@
           {
             "type": "command",
             "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 1799ef60-f940-46a4-a829-4dcdeb6f38d5"
+          }
+        ]
+      },
+      {
+        "matcher": "terminal-ide-state-hook",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 0b6e6000-877b-4c06-85da-d97f5a156678"
           }
         ]
       }

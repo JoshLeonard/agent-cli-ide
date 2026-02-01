@@ -181,6 +181,12 @@ const api = {
     onReceived: createEventSubscriber('message:received'),
   },
 
+  // OS Clipboard
+  clipboard: {
+    readOS: (): Promise<string> =>
+      ipcRenderer.invoke('clipboard:readOS'),
+  },
+
   // Window controls
   window: {
     minimize: (): Promise<void> =>

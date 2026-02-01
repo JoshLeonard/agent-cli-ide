@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import type { TerminalPanel as TerminalPanelType } from '../../../shared/types/layout';
+import type { QuickCommand } from '../../../shared/types/settings';
 import { PanelContextMenu } from './PanelContextMenu';
 import { PanelHeader } from './PanelHeader';
 import { TerminalContainer } from '../terminal/TerminalContainer';
@@ -7,6 +8,7 @@ import { MessageFeedback } from '../terminal/MessageFeedback';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { useMessagingStore } from '../../stores/messagingStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { useToastStore } from '../../stores/toastStore';
 import './TerminalPanel.css';
 import '../terminal/MessageFeedback.css';
@@ -45,6 +47,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
 
   const { setActivePanel, clearPanelSession, sessions } = useLayoutStore();
   const { openQuickSend } = useMessagingStore();
+  const { settings } = useSettingsStore();
   const { showToast } = useToastStore();
 
   const session = panel.sessionId ? sessions.get(panel.sessionId) : null;
@@ -112,6 +115,23 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     }
   }, [panel.sessionId, showToast]);
 
+  const handlePasteOSClipboard = useCallback(async () => {
+    if (!panel.sessionId) return;
+    const content = await window.terminalIDE.clipboard.readOS();
+    if (content) {
+      await window.terminalIDE.session.write(panel.sessionId, content);
+    } else {
+      showToast('Clipboard is empty', 'info');
+    }
+  }, [panel.sessionId, showToast]);
+
+  const handleQuickCommand = useCallback(async (command: QuickCommand) => {
+    if (!panel.sessionId) return;
+    const addNewline = command.addNewline !== false; // Default to true
+    const content = addNewline ? command.command + '\n' : command.command;
+    await window.terminalIDE.session.write(panel.sessionId, content);
+  }, [panel.sessionId]);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     // Only accept drops on empty panels
     if (!panel.sessionId) {
@@ -178,10 +198,13 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
         <PanelContextMenu
           position={{ x: contextMenu.x, y: contextMenu.y }}
           sessionId={panel.sessionId}
+          quickCommands={settings.quickCommands}
           onCloseSession={handleCloseSession}
           onCopyToClipboard={handleCopyToClipboard}
           onSendToSession={handleSendToSession}
           onPasteSharedClipboard={handlePasteSharedClipboard}
+          onPasteOSClipboard={handlePasteOSClipboard}
+          onQuickCommand={handleQuickCommand}
           onDismiss={handleDismissContextMenu}
         />
       )}

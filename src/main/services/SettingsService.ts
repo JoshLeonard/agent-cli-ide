@@ -49,6 +49,13 @@ export class SettingsService {
       };
     }
 
+    if (partial.quickCommands !== undefined) {
+      this.settings = {
+        ...this.settings,
+        quickCommands: partial.quickCommands,
+      };
+    }
+
     // Save to disk
     await this.save();
 
@@ -83,6 +90,7 @@ export class SettingsService {
         defaultCols: loaded.grid?.defaultCols ?? DEFAULT_SETTINGS.grid.defaultCols,
       },
       restoreSessionsOnStartup: loaded.restoreSessionsOnStartup ?? DEFAULT_SETTINGS.restoreSessionsOnStartup,
+      quickCommands: loaded.quickCommands ?? DEFAULT_SETTINGS.quickCommands,
     };
   }
 }

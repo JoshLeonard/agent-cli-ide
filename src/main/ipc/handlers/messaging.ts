@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, clipboard } from 'electron';
 import { messagingService } from '../../services/MessagingService';
 import { activityFeedService } from '../../services/ActivityFeedService';
 import type { MessageSendOptions } from '../../../shared/types/messaging';
@@ -45,6 +45,11 @@ export function registerMessagingHandlers(): void {
     return messagingService.getClipboard();
   });
 
+  // OS Clipboard handler
+  ipcMain.handle('clipboard:readOS', () => {
+    return clipboard.readText();
+  });
+
   // Activity feed handlers
   ipcMain.handle('activity:getEvents', (_event, filter: ActivityFilter) => {
     return activityFeedService.getEvents(filter);
@@ -61,6 +66,7 @@ export function unregisterMessagingHandlers(): void {
   ipcMain.removeHandler('messaging:broadcast');
   ipcMain.removeHandler('messaging:setClipboard');
   ipcMain.removeHandler('messaging:getClipboard');
+  ipcMain.removeHandler('clipboard:readOS');
   ipcMain.removeHandler('activity:getEvents');
   ipcMain.removeHandler('activity:clearEvents');
 }

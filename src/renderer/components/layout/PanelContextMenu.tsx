@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { QuickCommandsSubmenu } from './QuickCommandsSubmenu';
+import type { QuickCommand } from '../../../shared/types/settings';
 import './PanelContextMenu.css';
 
 interface ContextMenuPosition {
@@ -9,23 +11,32 @@ interface ContextMenuPosition {
 interface PanelContextMenuProps {
   position: ContextMenuPosition;
   sessionId?: string;
+  quickCommands?: QuickCommand[];
   onCloseSession: () => void;
   onCopyToClipboard?: () => void;
   onSendToSession?: () => void;
   onPasteSharedClipboard?: () => void;
+  onPasteOSClipboard?: () => void;
+  onQuickCommand?: (command: QuickCommand) => void;
   onDismiss: () => void;
 }
 
 export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
   position,
   sessionId,
+  quickCommands,
   onCloseSession,
   onCopyToClipboard,
   onSendToSession,
   onPasteSharedClipboard,
+  onPasteOSClipboard,
+  onQuickCommand,
   onDismiss,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [showQuickCommands, setShowQuickCommands] = useState(false);
+  const [quickCommandsPosition, setQuickCommandsPosition] = useState({ x: 0, y: 0 });
+  const quickCommandsItemRef = useRef<HTMLButtonElement>(null);
 
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
@@ -72,6 +83,28 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
     onDismiss();
   };
 
+  const handleQuickCommandsHover = useCallback(() => {
+    if (quickCommandsItemRef.current) {
+      const rect = quickCommandsItemRef.current.getBoundingClientRect();
+      setQuickCommandsPosition({
+        x: rect.right,
+        y: rect.top,
+      });
+      setShowQuickCommands(true);
+    }
+  }, []);
+
+  const handleQuickCommandsLeave = useCallback(() => {
+    setShowQuickCommands(false);
+  }, []);
+
+  const handleQuickCommandExecute = useCallback((command: QuickCommand) => {
+    if (onQuickCommand) {
+      onQuickCommand(command);
+    }
+    onDismiss();
+  }, [onQuickCommand, onDismiss]);
+
   return (
     <div
       className="panel-context-menu"
@@ -106,9 +139,48 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
           Paste Shared Clipboard
         </button>
       )}
+      {sessionId && onPasteOSClipboard && (
+        <button
+          className="context-menu-item"
+          onClick={() => handleItemClick(onPasteOSClipboard)}
+        >
+          <span className="context-menu-icon">{'\u{1F4CB}'}</span>
+          Paste from Clipboard
+        </button>
+      )}
 
       {/* Separator if we have messaging options */}
-      {sessionId && (onCopyToClipboard || onSendToSession || onPasteSharedClipboard) && (
+      {sessionId && (onCopyToClipboard || onSendToSession || onPasteSharedClipboard || onPasteOSClipboard) && (
+        <div className="context-menu-separator" />
+      )}
+
+      {/* Quick Commands submenu */}
+      {sessionId && quickCommands && quickCommands.length > 0 && onQuickCommand && (
+        <div
+          className="context-menu-item-wrapper"
+          onMouseEnter={handleQuickCommandsHover}
+          onMouseLeave={handleQuickCommandsLeave}
+        >
+          <button
+            ref={quickCommandsItemRef}
+            className="context-menu-item has-submenu"
+          >
+            <span className="context-menu-icon">{'\u26A1'}</span>
+            Quick Commands
+            <span className="submenu-arrow">{'\u25B6'}</span>
+          </button>
+          {showQuickCommands && (
+            <QuickCommandsSubmenu
+              commands={quickCommands}
+              onExecute={handleQuickCommandExecute}
+              parentPosition={quickCommandsPosition}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Separator before danger zone */}
+      {sessionId && quickCommands && quickCommands.length > 0 && (
         <div className="context-menu-separator" />
       )}
 

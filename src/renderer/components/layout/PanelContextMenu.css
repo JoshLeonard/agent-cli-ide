@@ -62,3 +62,72 @@
   margin: 4px 8px;
   background: var(--border-color);
 }
+
+/* Submenu support */
+.context-menu-item-wrapper {
+  position: relative;
+}
+
+.context-menu-item.has-submenu {
+  justify-content: flex-start;
+}
+
+.submenu-arrow {
+  margin-left: auto;
+  font-size: 8px;
+  color: var(--text-secondary);
+}
+
+/* Quick Commands Submenu */
+.quick-commands-submenu {
+  position: fixed;
+  z-index: 1001;
+  min-width: 140px;
+  padding: 4px 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.submenu-category {
+  padding: 2px 0;
+}
+
+.submenu-category-label {
+  padding: 4px 12px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.submenu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.submenu-item-name {
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.submenu-separator {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border-color);
+}

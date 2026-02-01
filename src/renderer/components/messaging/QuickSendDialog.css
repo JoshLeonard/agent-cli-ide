@@ -160,6 +160,23 @@
   color: var(--text-primary);
 }
 
+/* Multiline session info */
+.session-info-multiline {
+  align-items: flex-start;
+}
+
+.session-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-branch {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 /* Message Section */
 .message-section {
   margin-bottom: 12px;
