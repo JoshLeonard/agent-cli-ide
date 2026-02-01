@@ -7,11 +7,18 @@ import type { AgentStatus } from './agentStatus';
 import type { ActivityEvent, ActivityFilter } from './activity';
 import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from './messaging';
 
+export interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: number;
+}
+
 export interface PersistedState {
   sessions: SessionInfo[];
   layout: PersistedLayoutState;
   lastSaved: number;
   projectPath?: string;
+  recentProjects?: RecentProject[];
 }
 
 // Request/Response channels (invoke/handle)
@@ -87,6 +94,10 @@ export interface IpcChannels {
   'project:getCurrent': {
     request: void;
     response: ProjectInfo | null;
+  };
+  'project:getRecent': {
+    request: void;
+    response: RecentProject[];
   };
   'worktree:list': {
     request: { repoPath: string };
