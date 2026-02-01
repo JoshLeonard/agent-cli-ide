@@ -8,6 +8,7 @@ export interface Settings {
     defaultRows: number;
     defaultCols: number;
   };
+  restoreSessionsOnStartup: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -16,8 +17,10 @@ export const DEFAULT_SETTINGS: Settings = {
     defaultRows: 2,
     defaultCols: 5,
   },
+  restoreSessionsOnStartup: true,
 };
 
 export type PartialSettings = {
   grid?: Partial<Settings['grid']>;
+  restoreSessionsOnStartup?: boolean;
 };

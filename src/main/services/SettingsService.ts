@@ -42,6 +42,13 @@ export class SettingsService {
       };
     }
 
+    if (partial.restoreSessionsOnStartup !== undefined) {
+      this.settings = {
+        ...this.settings,
+        restoreSessionsOnStartup: partial.restoreSessionsOnStartup,
+      };
+    }
+
     // Save to disk
     await this.save();
 
@@ -75,6 +82,7 @@ export class SettingsService {
         defaultRows: loaded.grid?.defaultRows ?? DEFAULT_SETTINGS.grid.defaultRows,
         defaultCols: loaded.grid?.defaultCols ?? DEFAULT_SETTINGS.grid.defaultCols,
       },
+      restoreSessionsOnStartup: loaded.restoreSessionsOnStartup ?? DEFAULT_SETTINGS.restoreSessionsOnStartup,
     };
   }
 }

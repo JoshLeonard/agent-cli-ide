@@ -145,7 +145,16 @@ export class SessionRegistry {
     return this.sessionHooksConfigured.get(sessionId) ?? false;
   }
 
-  restoreSession(info: SessionInfo): Session {
+  /**
+   * Restore a session from persisted state.
+   * @param info - The persisted session info
+   * @param autoStart - Whether to automatically start the PTY process (default: false)
+   * @returns Object with session and whether hooks were configured
+   */
+  async restoreSession(
+    info: SessionInfo,
+    autoStart: boolean = false
+  ): Promise<{ session: Session; hooksConfigured: boolean }> {
     const session = new Session({
       id: info.id,
       type: info.type,
@@ -155,7 +164,30 @@ export class SessionRegistry {
       agentId: info.agentId,
     });
     this.sessions.set(session.id, session);
-    return session;
+
+    let hooksConfigured = false;
+
+    if (autoStart) {
+      // Configure hooks for Claude Code sessions
+      if (info.agentId === 'claude-code') {
+        const sessionCwd = info.worktreePath || info.cwd;
+        hooksConfigured = await claudeHooksManager.ensureHooksConfigured(sessionCwd, session.id);
+        if (hooksConfigured) {
+          hookStateWatcherService.watchSession(session.id);
+          this.sessionHooksConfigured.set(session.id, true);
+        }
+      }
+
+      await session.start();
+
+      const sessionInfo = session.toInfo();
+      eventBus.emit(Events.SESSION_CREATED, {
+        session: sessionInfo,
+        hooksConfigured,
+      });
+    }
+
+    return { session, hooksConfigured };
   }
 }
 

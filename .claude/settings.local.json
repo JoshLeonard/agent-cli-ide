@@ -46,7 +46,10 @@
       "Bash(test:*)",
       "Bash(cmd //c:*)",
       "Bash(git stash:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(ls:*)",
+      "Bash(npx prebuild-install:*)",
+      "Bash(./GetCommitHash.bat)"
     ]
   }
 }

@@ -36,7 +36,7 @@ export class PersistenceService {
   async save(sessions: SessionInfo[], layout: PersistedLayoutState, projectPath?: string): Promise<void> {
     const existing = await this.load();
     const state: ExtendedPersistedState = {
-      sessions: sessions.filter((s) => s.status !== 'terminated'),
+      sessions: sessions.filter((s) => s.status === 'running' || s.status === 'initializing'),
       layout,
       lastSaved: Date.now(),
       projectPath: projectPath ?? existing?.projectPath,
