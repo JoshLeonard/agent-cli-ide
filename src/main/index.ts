@@ -28,7 +28,7 @@ async function createWindow(): Promise<void> {
     backgroundColor: '#1e1e1e',
   });
 
-  registerIpcHandlers(mainWindow);
+  await registerIpcHandlers(mainWindow);
 
   // Load the app
   if (process.env.NODE_ENV === 'development') {

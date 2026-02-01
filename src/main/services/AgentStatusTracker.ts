@@ -1,16 +1,19 @@
 import { eventBus, Events } from './EventBus';
 import { ClaudeCodeAnalyzer } from './outputAnalyzers/ClaudeCodeAnalyzer';
 import { ShellAnalyzer } from './outputAnalyzers/ShellAnalyzer';
-import type { AgentStatus, AgentActivityState, FileChange } from '../../shared/types/agentStatus';
+import type { AgentStatus, AgentActivityState, FileChange, HookStateEvent, StateSource } from '../../shared/types/agentStatus';
 
-// Maximum output buffer size per session (10KB)
-const MAX_BUFFER_SIZE = 10 * 1024;
+// Maximum output buffer size per session (20KB - increased for better pattern matching)
+const MAX_BUFFER_SIZE = 20 * 1024;
 
 // Debounce time for status updates (300ms)
 const STATUS_UPDATE_DEBOUNCE = 300;
 
-// Inactivity timeout - if "working" and no output for this duration, transition to "idle"
-const INACTIVITY_TIMEOUT_MS = 1500;
+// Inactivity timeout when hooks are available (shorter, since hooks are authoritative)
+const INACTIVITY_TIMEOUT_WITH_HOOKS_MS = 1500;
+
+// Inactivity timeout when hooks are NOT available (longer, pattern matching is less reliable)
+const INACTIVITY_TIMEOUT_WITHOUT_HOOKS_MS = 3000;
 
 interface SessionTracker {
   sessionId: string;
@@ -21,12 +24,15 @@ interface SessionTracker {
   updateTimeout: ReturnType<typeof setTimeout> | null;
   inactivityTimer: ReturnType<typeof setTimeout> | null;
   lastOutputTime: number;
+  hookActive: boolean;
+  lastHookStateTime: number;
 }
 
 export class AgentStatusTracker {
   private trackers: Map<string, SessionTracker> = new Map();
   private outputSubscription: { unsubscribe: () => void } | null = null;
   private terminatedSubscription: { unsubscribe: () => void } | null = null;
+  private hookStateSubscription: { unsubscribe: () => void } | null = null;
 
   initialize(): void {
     // Subscribe to session output events
@@ -40,11 +46,18 @@ export class AgentStatusTracker {
       Events.SESSION_TERMINATED,
       (event) => this.handleTerminated(event.sessionId)
     );
+
+    // Subscribe to hook state changes
+    this.hookStateSubscription = eventBus.on<HookStateEvent>(
+      Events.HOOK_STATE_CHANGED,
+      (event) => this.handleHookStateChange(event)
+    );
   }
 
   shutdown(): void {
     this.outputSubscription?.unsubscribe();
     this.terminatedSubscription?.unsubscribe();
+    this.hookStateSubscription?.unsubscribe();
 
     // Clear all pending timeouts
     for (const tracker of this.trackers.values()) {
@@ -58,7 +71,7 @@ export class AgentStatusTracker {
     this.trackers.clear();
   }
 
-  registerSession(sessionId: string, agentId?: string): void {
+  registerSession(sessionId: string, agentId?: string, hookEnabled: boolean = false): void {
     // Determine analyzer type based on agent
     const isAiAgent = agentId && ['claude-code', 'cursor', 'aider'].includes(agentId);
     const analyzer = isAiAgent ? new ClaudeCodeAnalyzer() : new ShellAnalyzer();
@@ -75,13 +88,25 @@ export class AgentStatusTracker {
         taskSummary: null,
         recentFileChanges: [],
         errorMessage: null,
+        stateSource: 'pattern',
+        hookAvailable: hookEnabled,
       },
       updateTimeout: null,
       inactivityTimer: null,
       lastOutputTime: Date.now(),
+      hookActive: hookEnabled,
+      lastHookStateTime: 0,
     };
 
     this.trackers.set(sessionId, tracker);
+  }
+
+  setHookActive(sessionId: string, active: boolean): void {
+    const tracker = this.trackers.get(sessionId);
+    if (tracker) {
+      tracker.hookActive = active;
+      tracker.status.hookAvailable = active;
+    }
   }
 
   unregisterSession(sessionId: string): void {
@@ -121,15 +146,22 @@ export class AgentStatusTracker {
       tracker.outputBuffer = tracker.outputBuffer.slice(-MAX_BUFFER_SIZE);
     }
 
-    // Analyze the output
+    // If hooks are active and we recently received a hook state, skip pattern analysis
+    // Hooks are authoritative - don't let pattern matching override them
+    const timeSinceHookState = Date.now() - tracker.lastHookStateTime;
+    const hookStateIsFresh = tracker.hookActive && timeSinceHookState < 1000;
+
+    // Analyze the output (but don't override hook state for activity)
     const result = tracker.analyzer.analyze(tracker.outputBuffer);
 
     // Update status if we got meaningful results
     let statusChanged = false;
 
-    if (result.activityState !== undefined) {
+    // Only update activity state from patterns if hooks haven't recently set it
+    if (result.activityState !== undefined && !hookStateIsFresh) {
       if (tracker.status.activityState !== result.activityState) {
         tracker.status.activityState = result.activityState;
+        tracker.status.stateSource = 'pattern';
         tracker.status.lastActivityTimestamp = Date.now();
         statusChanged = true;
       }
@@ -162,12 +194,49 @@ export class AgentStatusTracker {
     this.resetInactivityTimer(tracker);
   }
 
+  private handleHookStateChange(event: HookStateEvent): void {
+    const tracker = this.trackers.get(event.sessionId);
+    if (!tracker) {
+      return;
+    }
+
+    // Hook state is authoritative - update immediately
+    tracker.hookActive = true;
+    tracker.status.hookAvailable = true;
+    tracker.lastHookStateTime = event.timestamp;
+
+    if (tracker.status.activityState !== event.state) {
+      tracker.status.activityState = event.state;
+      tracker.status.stateSource = 'hook';
+      tracker.status.lastActivityTimestamp = event.timestamp;
+
+      // Clear error state if transitioning to non-error state via hook
+      if (event.state !== 'error') {
+        tracker.status.errorMessage = null;
+        tracker.analyzer.clearError();
+      }
+
+      // Clear inactivity timer - hooks are definitive
+      if (tracker.inactivityTimer) {
+        clearTimeout(tracker.inactivityTimer);
+        tracker.inactivityTimer = null;
+      }
+
+      this.scheduleStatusUpdate(tracker);
+    }
+  }
+
   private resetInactivityTimer(tracker: SessionTracker): void {
     // Clear existing timer
     if (tracker.inactivityTimer) {
       clearTimeout(tracker.inactivityTimer);
       tracker.inactivityTimer = null;
     }
+
+    // Use longer timeout when hooks are not available (pattern matching is less reliable)
+    const timeoutMs = tracker.hookActive
+      ? INACTIVITY_TIMEOUT_WITH_HOOKS_MS
+      : INACTIVITY_TIMEOUT_WITHOUT_HOOKS_MS;
 
     // Only set inactivity timer if currently in "working" state
     if (tracker.status.activityState === 'working') {
@@ -177,13 +246,14 @@ export class AgentStatusTracker {
         const timeSinceLastOutput = Date.now() - tracker.lastOutputTime;
         if (
           tracker.status.activityState === 'working' &&
-          timeSinceLastOutput >= INACTIVITY_TIMEOUT_MS
+          timeSinceLastOutput >= timeoutMs
         ) {
           tracker.status.activityState = 'idle';
+          tracker.status.stateSource = 'timeout';
           tracker.status.lastActivityTimestamp = Date.now();
           this.scheduleStatusUpdate(tracker);
         }
-      }, INACTIVITY_TIMEOUT_MS);
+      }, timeoutMs);
     }
   }
 
@@ -211,10 +281,11 @@ export class AgentStatusTracker {
   }
 
   // Manual state override (e.g., when user sends input)
-  setActivityState(sessionId: string, state: AgentActivityState): void {
+  setActivityState(sessionId: string, state: AgentActivityState, source: StateSource = 'pattern'): void {
     const tracker = this.trackers.get(sessionId);
     if (tracker) {
       tracker.status.activityState = state;
+      tracker.status.stateSource = source;
       tracker.status.lastActivityTimestamp = Date.now();
       if (state !== 'error') {
         tracker.status.errorMessage = null;
@@ -222,6 +293,12 @@ export class AgentStatusTracker {
       }
       this.scheduleStatusUpdate(tracker);
     }
+  }
+
+  // Check if hooks are active for a session
+  isHookActive(sessionId: string): boolean {
+    const tracker = this.trackers.get(sessionId);
+    return tracker?.hookActive ?? false;
   }
 }
 

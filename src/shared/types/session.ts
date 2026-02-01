@@ -27,6 +27,7 @@ export interface SessionCreateResult {
   success: boolean;
   session?: SessionInfo;
   error?: string;
+  hooksConfigured?: boolean;
 }
 
 // Legacy types - kept for backward compatibility, prefer types from layout.ts

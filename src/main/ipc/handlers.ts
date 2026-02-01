@@ -9,6 +9,8 @@ import { agentStatusTracker } from '../services/AgentStatusTracker';
 import { activityFeedService } from '../services/ActivityFeedService';
 import { messagingService } from '../services/MessagingService';
 import { worktreeWatcherService } from '../services/WorktreeWatcherService';
+import { hookStateWatcherService } from '../services/HookStateWatcherService';
+import { claudeHooksManager } from '../services/ClaudeHooksManager';
 import type { SessionConfig } from '../../shared/types/session';
 import type { PersistedLayoutState } from '../../shared/types/layout';
 import type { AgentStatus } from '../../shared/types/agentStatus';
@@ -18,17 +20,23 @@ import type { MessageSendOptions } from '../../shared/types/messaging';
 // Store event subscriptions for cleanup
 const eventSubscriptions: Array<{ unsubscribe: () => void }> = [];
 
-export function registerIpcHandlers(mainWindow: BrowserWindow): void {
+export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<void> {
   // Initialize services
   agentStatusTracker.initialize();
   activityFeedService.initialize();
+  hookStateWatcherService.initialize();
+  await claudeHooksManager.initialize();
 
   // Session handlers
   ipcMain.handle('session:create', async (_event, config: SessionConfig) => {
     const result = await sessionRegistry.createSession(config);
     if (result.success && result.session) {
-      // Register session with status tracker
-      agentStatusTracker.registerSession(result.session.id, result.session.agentId);
+      // Register session with status tracker, indicating if hooks are configured
+      agentStatusTracker.registerSession(
+        result.session.id,
+        result.session.agentId,
+        result.hooksConfigured ?? false
+      );
     }
     return result;
   });
@@ -325,6 +333,7 @@ export function unregisterIpcHandlers(): void {
   activityFeedService.shutdown();
   worktreeWatcherService.shutdown();
   messagingService.shutdown();
+  hookStateWatcherService.shutdown();
 
   ipcMain.removeHandler('session:create');
   ipcMain.removeHandler('session:terminate');
