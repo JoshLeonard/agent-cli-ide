@@ -35,6 +35,13 @@ export class ProjectService {
       // Save project path for persistence
       await persistenceService.saveProjectPath(projectPath);
 
+      // Add to recent projects
+      await persistenceService.addRecentProject({
+        path: projectPath,
+        name: this.currentProject.name,
+        lastOpened: Date.now(),
+      });
+
       // Start polling for branch changes
       this.startPolling();
 

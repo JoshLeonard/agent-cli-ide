@@ -6,6 +6,7 @@ import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from '.
 
 export class MessagingService {
   private sharedClipboard: SharedClipboard | null = null;
+  private pendingTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 
   send(
     sourceSessionId: string,
@@ -52,14 +53,20 @@ export class MessagingService {
         : content;
 
       if (message.metadata?.delay) {
-        // Delayed write
-        setTimeout(() => {
-          session.write(dataToWrite);
-          // Set to working if executing a command
-          if (message.metadata?.addNewline) {
-            agentStatusTracker.setActivityState(targetId, 'working');
+        // Delayed write - track timeout for cleanup
+        const timeoutId = setTimeout(() => {
+          this.pendingTimeouts.delete(timeoutId);
+          // Check if session is still valid before writing
+          const currentSession = sessionRegistry.getSession(targetId);
+          if (currentSession && currentSession.status === 'running') {
+            currentSession.write(dataToWrite);
+            // Set to working if executing a command
+            if (message.metadata?.addNewline) {
+              agentStatusTracker.setActivityState(targetId, 'working');
+            }
           }
         }, message.metadata.delay);
+        this.pendingTimeouts.add(timeoutId);
       } else {
         session.write(dataToWrite);
         // Set to working if executing a command
@@ -123,6 +130,15 @@ export class MessagingService {
   }
 
   clearClipboard(): void {
+    this.sharedClipboard = null;
+  }
+
+  shutdown(): void {
+    // Cancel all pending delayed writes
+    for (const timeoutId of this.pendingTimeouts) {
+      clearTimeout(timeoutId);
+    }
+    this.pendingTimeouts.clear();
     this.sharedClipboard = null;
   }
 }

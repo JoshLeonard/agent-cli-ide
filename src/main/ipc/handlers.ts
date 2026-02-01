@@ -8,11 +8,15 @@ import { eventBus, Events } from '../services/EventBus';
 import { agentStatusTracker } from '../services/AgentStatusTracker';
 import { activityFeedService } from '../services/ActivityFeedService';
 import { messagingService } from '../services/MessagingService';
+import { worktreeWatcherService } from '../services/WorktreeWatcherService';
 import type { SessionConfig } from '../../shared/types/session';
 import type { PersistedLayoutState } from '../../shared/types/layout';
 import type { AgentStatus } from '../../shared/types/agentStatus';
 import type { ActivityFilter } from '../../shared/types/activity';
 import type { MessageSendOptions } from '../../shared/types/messaging';
+
+// Store event subscriptions for cleanup
+const eventSubscriptions: Array<{ unsubscribe: () => void }> = [];
 
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // Initialize services
@@ -101,15 +105,24 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // Project handlers
   ipcMain.handle('project:open', async (_event, { path }: { path: string }) => {
-    return projectService.openProject(path);
+    const result = await projectService.openProject(path);
+    if (result.success && result.project?.isGitRepo) {
+      worktreeWatcherService.watchProject(path);
+    }
+    return result;
   });
 
   ipcMain.handle('project:close', async () => {
+    worktreeWatcherService.stopWatching();
     return projectService.closeProject();
   });
 
   ipcMain.handle('project:getCurrent', () => {
     return projectService.getCurrentProject();
+  });
+
+  ipcMain.handle('project:getRecent', async () => {
+    return persistenceService.getRecentProjects();
   });
 
   // Worktree handlers
@@ -188,38 +201,70 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return messagingService.getClipboard();
   });
 
-  // Forward events to renderer
-  eventBus.on(Events.SESSION_OUTPUT, (data) => {
-    mainWindow.webContents.send('session:output', data);
-  });
+  // Forward events to renderer - store subscriptions for cleanup
+  eventSubscriptions.push(
+    eventBus.on(Events.SESSION_OUTPUT, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('session:output', data);
+      }
+    })
+  );
 
-  eventBus.on(Events.SESSION_TERMINATED, (data) => {
-    mainWindow.webContents.send('session:terminated', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(Events.SESSION_TERMINATED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('session:terminated', data);
+      }
+    })
+  );
 
-  eventBus.on(Events.SESSION_UPDATED, (data) => {
-    mainWindow.webContents.send('session:updated', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(Events.SESSION_UPDATED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('session:updated', data);
+      }
+    })
+  );
 
-  eventBus.on(ProjectEvents.PROJECT_UPDATED, (data) => {
-    mainWindow.webContents.send('project:updated', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(ProjectEvents.PROJECT_UPDATED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('project:updated', data);
+      }
+    })
+  );
 
-  eventBus.on(Events.AGENT_STATUS_UPDATED, (data) => {
-    mainWindow.webContents.send('agentStatus:updated', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(Events.AGENT_STATUS_UPDATED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('agentStatus:updated', data);
+      }
+    })
+  );
 
-  eventBus.on(Events.ACTIVITY_EVENT, (data) => {
-    mainWindow.webContents.send('activity:event', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(Events.ACTIVITY_EVENT, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('activity:event', data);
+      }
+    })
+  );
 
-  eventBus.on(Events.MESSAGE_SENT, (data) => {
-    mainWindow.webContents.send('message:sent', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(Events.MESSAGE_SENT, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('message:sent', data);
+      }
+    })
+  );
 
-  eventBus.on(Events.MESSAGE_RECEIVED, (data) => {
-    mainWindow.webContents.send('message:received', data);
-  });
+  eventSubscriptions.push(
+    eventBus.on(Events.MESSAGE_RECEIVED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('message:received', data);
+      }
+    })
+  );
 
   // Window control handlers
   ipcMain.handle('window:minimize', () => {
@@ -248,18 +293,38 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // Forward maximize state changes to renderer
   mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window:maximizeChanged', { isMaximized: true });
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:maximizeChanged', { isMaximized: true });
+    }
   });
 
   mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window:maximizeChanged', { isMaximized: false });
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:maximizeChanged', { isMaximized: false });
+    }
   });
+
+  eventSubscriptions.push(
+    eventBus.on(Events.WORKTREE_CHANGED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('worktree:changed', data);
+      }
+    })
+  );
 }
 
 export function unregisterIpcHandlers(): void {
+  // Unsubscribe from all event bus events first
+  for (const subscription of eventSubscriptions) {
+    subscription.unsubscribe();
+  }
+  eventSubscriptions.length = 0;
+
   // Shutdown services
   agentStatusTracker.shutdown();
   activityFeedService.shutdown();
+  worktreeWatcherService.shutdown();
+  messagingService.shutdown();
 
   ipcMain.removeHandler('session:create');
   ipcMain.removeHandler('session:terminate');
@@ -279,6 +344,7 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeHandler('project:open');
   ipcMain.removeHandler('project:close');
   ipcMain.removeHandler('project:getCurrent');
+  ipcMain.removeHandler('project:getRecent');
   ipcMain.removeHandler('worktree:list');
   ipcMain.removeHandler('worktree:remove');
   ipcMain.removeHandler('worktree:cleanOrphaned');
