@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { TerminalPanel as TerminalPanelType } from '../../../shared/types/layout';
 import { PanelContextMenu } from './PanelContextMenu';
+import { PanelHeader } from './PanelHeader';
 import { TerminalContainer } from '../terminal/TerminalContainer';
 import { MessageFeedback } from '../terminal/MessageFeedback';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -42,9 +43,11 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const [isDragOver, setDragOver] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  const { setActivePanel, clearPanelSession } = useLayoutStore();
+  const { setActivePanel, clearPanelSession, sessions } = useLayoutStore();
   const { openQuickSend } = useMessagingStore();
   const { showToast } = useToastStore();
+
+  const session = panel.sessionId ? sessions.get(panel.sessionId) : null;
 
   const handlePanelClick = useCallback(() => {
     setActivePanel(panel.id);
@@ -70,10 +73,13 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     setShowCloseConfirm(true);
   }, []);
 
-  const handleConfirmClose = useCallback(() => {
+  const handleConfirmClose = useCallback(async () => {
+    if (panel.sessionId) {
+      await window.terminalIDE.session.terminate(panel.sessionId);
+    }
     clearPanelSession(panel.id);
     setShowCloseConfirm(false);
-  }, [panel.id, clearPanelSession]);
+  }, [panel.id, panel.sessionId, clearPanelSession]);
 
   const handleCancelClose = useCallback(() => {
     setShowCloseConfirm(false);
@@ -145,6 +151,9 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {session && (
+        <PanelHeader session={session} onClose={handleCloseSession} />
+      )}
       <div className="terminal-panel-content">
         {panel.sessionId ? (
           <TerminalContainer
