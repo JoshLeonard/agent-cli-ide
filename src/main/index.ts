@@ -57,12 +57,6 @@ app.whenReady().then(async () => {
     console.log(`Cleaned up ${cleaned.length} orphaned worktrees`);
   }
 
-  // Restore last project if path still exists
-  const restoredProject = await projectService.restoreProject();
-  if (restoredProject) {
-    console.log(`Restored project: ${restoredProject.path}`);
-  }
-
   await createWindow();
 
   app.on('activate', async () => {
