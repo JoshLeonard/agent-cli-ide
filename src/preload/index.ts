@@ -12,6 +12,7 @@ import type { IpcEvents, WorktreeInfo, WorktreeResult } from '../shared/types/ip
 import type { AgentStatus } from '../shared/types/agentStatus';
 import type { ActivityEvent, ActivityFilter } from '../shared/types/activity';
 import type { SharedClipboard, MessageSendOptions } from '../shared/types/messaging';
+import type { Settings, PartialSettings } from '../shared/types/settings';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -222,6 +223,24 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['window:maximizeChanged']) => callback(data);
       ipcRenderer.on('window:maximizeChanged', handler);
       return () => ipcRenderer.removeListener('window:maximizeChanged', handler);
+    },
+  },
+
+  // Settings
+  settings: {
+    get: (): Promise<Settings> =>
+      ipcRenderer.invoke('settings:get'),
+
+    update: (partial: PartialSettings): Promise<Settings> =>
+      ipcRenderer.invoke('settings:update', partial),
+
+    reset: (): Promise<Settings> =>
+      ipcRenderer.invoke('settings:reset'),
+
+    onUpdated: (callback: EventCallback<IpcEvents['settings:updated']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['settings:updated']) => callback(data);
+      ipcRenderer.on('settings:updated', handler);
+      return () => ipcRenderer.removeListener('settings:updated', handler);
     },
   },
 };

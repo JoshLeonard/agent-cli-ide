@@ -7,14 +7,17 @@ import { StatusBar } from './components/StatusBar';
 import { QuickSendDialog } from './components/messaging/QuickSendDialog';
 import { ToastContainer } from './components/ui/Toast';
 import { TitleBar } from './components/titlebar/TitleBar';
+import { SettingsDialog } from './components/settings/SettingsDialog';
 import { useLayoutStore } from './stores/layoutStore';
 import { useProjectStore } from './stores/projectStore';
 import { useMessagingStore } from './stores/messagingStore';
+import { useSettingsStore } from './stores/settingsStore';
 import type { SessionType } from '../shared/types/session';
 import './components/messaging/QuickSendDialog.css';
 
 const App: React.FC = () => {
   const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [pendingPanelId, setPendingPanelId] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
@@ -22,6 +25,8 @@ const App: React.FC = () => {
   const setProject = useProjectStore((state) => state.setProject);
 
   const { openQuickSend, setLastReceivedMessage, addRecentMessage } = useMessagingStore();
+
+  const { settings, loadSettings, setSettings } = useSettingsStore();
 
   const {
     gridConfig,
@@ -42,6 +47,22 @@ const App: React.FC = () => {
     getWorktreeAgent,
     setWorktreeAgent,
   } = useLayoutStore();
+
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  // Subscribe to settings updates
+  useEffect(() => {
+    const unsubscribe = window.terminalIDE.settings.onUpdated(({ settings }) => {
+      setSettings(settings);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [setSettings]);
 
   // Load project state on mount
   useEffect(() => {
@@ -82,8 +103,15 @@ const App: React.FC = () => {
 
       if (!mounted) return;
 
-      // Clear frontend state (resets to default grid)
-      clearSessions();
+      // Get settings for default grid config
+      const currentSettings = await window.terminalIDE.settings.get();
+      const defaultConfig = {
+        rows: currentSettings.grid.defaultRows,
+        cols: currentSettings.grid.defaultCols,
+      };
+
+      // Clear frontend state (resets to default grid from settings)
+      clearSessions(defaultConfig);
 
       // Only restore layout if there are actual sessions
       if (backendSessions.length > 0) {
@@ -139,7 +167,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Keyboard shortcuts for messaging
+  // Keyboard shortcuts for messaging and settings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+Shift+S: Open Quick Send Dialog
@@ -157,6 +185,11 @@ const App: React.FC = () => {
       if (e.ctrlKey && e.shiftKey && e.key === 'V') {
         e.preventDefault();
         handlePasteSharedClipboard();
+      }
+      // Ctrl+,: Open Settings
+      if (e.ctrlKey && !e.shiftKey && e.key === ',') {
+        e.preventDefault();
+        setSettingsOpen(true);
       }
     };
 
@@ -330,6 +363,11 @@ const App: React.FC = () => {
     setSidebarVisible(!sidebarVisible);
   };
 
+  // Handler for opening settings
+  const handleOpenSettings = () => {
+    setSettingsOpen(true);
+  };
+
   // Check if active session exists
   const hasActiveSession = !!(activePanel && panels.find(p => p.id === activePanel)?.sessionId);
 
@@ -356,6 +394,7 @@ const App: React.FC = () => {
         onCopyShared={handleCopyShared}
         onPasteShared={handlePasteSharedClipboard}
         onToggleSidebar={handleToggleSidebar}
+        onOpenSettings={handleOpenSettings}
         hasActiveSession={hasActiveSession}
       />
 
@@ -387,6 +426,7 @@ const App: React.FC = () => {
 
       <QuickSendDialog />
       <ToastContainer />
+      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 };

@@ -21,6 +21,7 @@ interface MenuBarProps {
   onBroadcast: () => void;
   onCopyShared: () => void;
   onPasteShared: () => void;
+  onOpenSettings: () => void;
   hasActiveSession: boolean;
 }
 
@@ -36,6 +37,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onBroadcast,
   onCopyShared,
   onPasteShared,
+  onOpenSettings,
   hasActiveSession,
 }) => {
   const { closeMenu } = useMenuStore();
@@ -47,6 +49,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       items: [
         { label: 'New Session', shortcut: 'Ctrl+N', action: onNewSession },
         { label: 'Open Project', shortcut: 'Ctrl+O', action: onOpenProject },
+        { separator: true, label: '' },
+        { label: 'Settings', shortcut: 'Ctrl+,', action: onOpenSettings },
         { separator: true, label: '' },
         { label: 'Exit', shortcut: 'Alt+F4', action: onExit },
       ],

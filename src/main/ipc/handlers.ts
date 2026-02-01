@@ -11,11 +11,13 @@ import { messagingService } from '../services/MessagingService';
 import { worktreeWatcherService } from '../services/WorktreeWatcherService';
 import { hookStateWatcherService } from '../services/HookStateWatcherService';
 import { claudeHooksManager } from '../services/ClaudeHooksManager';
+import { settingsService } from '../services/SettingsService';
 import type { SessionConfig } from '../../shared/types/session';
 import type { PersistedLayoutState } from '../../shared/types/layout';
 import type { AgentStatus } from '../../shared/types/agentStatus';
 import type { ActivityFilter } from '../../shared/types/activity';
 import type { MessageSendOptions } from '../../shared/types/messaging';
+import type { PartialSettings } from '../../shared/types/settings';
 
 // Store event subscriptions for cleanup
 const eventSubscriptions: Array<{ unsubscribe: () => void }> = [];
@@ -26,6 +28,7 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
   activityFeedService.initialize();
   hookStateWatcherService.initialize();
   await claudeHooksManager.initialize();
+  await settingsService.initialize();
 
   // Session handlers
   ipcMain.handle('session:create', async (_event, config: SessionConfig) => {
@@ -274,6 +277,19 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
     })
   );
 
+  // Settings handlers
+  ipcMain.handle('settings:get', () => {
+    return settingsService.get();
+  });
+
+  ipcMain.handle('settings:update', async (_event, partial: PartialSettings) => {
+    return settingsService.update(partial);
+  });
+
+  ipcMain.handle('settings:reset', async () => {
+    return settingsService.reset();
+  });
+
   // Window control handlers
   ipcMain.handle('window:minimize', () => {
     mainWindow.minimize();
@@ -316,6 +332,14 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
     eventBus.on(Events.WORKTREE_CHANGED, (data) => {
       if (!mainWindow.isDestroyed()) {
         mainWindow.webContents.send('worktree:changed', data);
+      }
+    })
+  );
+
+  eventSubscriptions.push(
+    eventBus.on(Events.SETTINGS_UPDATED, (data) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('settings:updated', data);
       }
     })
   );
@@ -371,4 +395,7 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeHandler('window:close');
   ipcMain.removeHandler('window:isMaximized');
   ipcMain.removeHandler('window:getPlatform');
+  ipcMain.removeHandler('settings:get');
+  ipcMain.removeHandler('settings:update');
+  ipcMain.removeHandler('settings:reset');
 }

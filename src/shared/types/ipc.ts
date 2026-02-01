@@ -6,6 +6,7 @@ import type { WorktreeInfo, WorktreeResult } from '../../main/services/GitWorktr
 import type { AgentStatus } from './agentStatus';
 import type { ActivityEvent, ActivityFilter } from './activity';
 import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from './messaging';
+import type { Settings, PartialSettings } from './settings';
 
 export interface RecentProject {
   path: string;
@@ -179,6 +180,19 @@ export interface IpcChannels {
     request: void;
     response: NodeJS.Platform;
   };
+  // Settings
+  'settings:get': {
+    request: void;
+    response: Settings;
+  };
+  'settings:update': {
+    request: PartialSettings;
+    response: Settings;
+  };
+  'settings:reset': {
+    request: void;
+    response: Settings;
+  };
 }
 
 // Event channels (send/on)
@@ -215,6 +229,9 @@ export interface IpcEvents {
   };
   'window:maximizeChanged': {
     isMaximized: boolean;
+  };
+  'settings:updated': {
+    settings: Settings;
   };
 }
 

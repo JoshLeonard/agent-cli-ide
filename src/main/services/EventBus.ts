@@ -72,4 +72,5 @@ export const Events = {
   MESSAGE_RECEIVED: 'message:received',
   WORKTREE_CHANGED: 'worktree:changed',
   HOOK_STATE_CHANGED: 'hook:stateChanged',
+  SETTINGS_UPDATED: 'settings:updated',
 } as const;

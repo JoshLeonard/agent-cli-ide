@@ -61,7 +61,7 @@ interface LayoutStore {
   // Session management
   updateSession: (session: SessionInfo) => void;
   removeSession: (sessionId: string) => void;
-  clearSessions: () => void;
+  clearSessions: (defaultConfig?: GridConfig) => void;
   setSessions: (sessions: SessionInfo[]) => void;
 
   // Agent status management
@@ -220,12 +220,16 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     });
   },
 
-  clearSessions: () => {
-    set((state) => ({
-      sessions: new Map(),
-      panels: createGridPanels(state.gridConfig),
-      activePanel: null,
-    }));
+  clearSessions: (defaultConfig?: GridConfig) => {
+    set((state) => {
+      const config = defaultConfig || state.gridConfig;
+      return {
+        sessions: new Map(),
+        gridConfig: config,
+        panels: createGridPanels(config),
+        activePanel: null,
+      };
+    });
   },
 
   setSessions: (sessions: SessionInfo[]) => {
