@@ -36,6 +36,7 @@ interface TitleBarProps {
   onCopyShared: () => void;
   onPasteShared: () => void;
   onToggleSidebar: () => void;
+  onOpenSettings: () => void;
   hasActiveSession: boolean;
 }
 
@@ -51,6 +52,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   onCopyShared,
   onPasteShared,
   onToggleSidebar,
+  onOpenSettings,
   hasActiveSession,
 }) => {
   const [platform, setPlatform] = useState<NodeJS.Platform>('win32');
@@ -114,6 +116,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         onBroadcast={onBroadcast}
         onCopyShared={onCopyShared}
         onPasteShared={onPasteShared}
+        onOpenSettings={onOpenSettings}
         hasActiveSession={hasActiveSession}
       />
 

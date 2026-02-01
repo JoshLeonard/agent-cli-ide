@@ -71,4 +71,5 @@ export const Events = {
   MESSAGE_SENT: 'message:sent',
   MESSAGE_RECEIVED: 'message:received',
   WORKTREE_CHANGED: 'worktree:changed',
+  SETTINGS_UPDATED: 'settings:updated',
 } as const;
