@@ -16,6 +16,7 @@ interface ClaudeSettings {
   hooks?: {
     Stop?: HookMatcher[];
     Notification?: HookMatcher[];
+    PreToolUse?: HookMatcher[];
     PostToolUse?: HookMatcher[];
     SessionStart?: HookMatcher[];
     [key: string]: HookMatcher[] | undefined;
@@ -23,8 +24,8 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-// Marker to identify hooks managed by Terminal IDE
-const TERMINAL_IDE_HOOK_MARKER = 'terminal-ide-state-hook';
+// Marker to identify hooks managed by Terminal IDE (used for cleanup, not matching)
+const TERMINAL_IDE_HOOK_MARKER = 'terminal-ide';
 
 export class ClaudeHooksManager {
   private hookScriptPath: string | null = null;
@@ -158,17 +159,22 @@ writeState(args[0], args[1]);
       });
 
       // Define Terminal IDE hooks
+      // Empty matcher = matches all events of that type
       const terminalIdeHooks: Record<string, HookMatcher> = {
+        PreToolUse: {
+          matcher: '', // Fire before ALL tool calls = working state
+          hooks: [createHookCommand('working')],
+        },
         Stop: {
-          matcher: TERMINAL_IDE_HOOK_MARKER,
+          matcher: '', // Empty = matches all stops
           hooks: [createHookCommand('idle')],
         },
         Notification: {
-          matcher: TERMINAL_IDE_HOOK_MARKER,
+          matcher: '', // Empty = matches all notifications (permission prompts, etc.)
           hooks: [createHookCommand('waiting')],
         },
         SessionStart: {
-          matcher: TERMINAL_IDE_HOOK_MARKER,
+          matcher: '', // Empty = matches all session starts
           hooks: [createHookCommand('idle')],
         },
       };
@@ -177,9 +183,9 @@ writeState(args[0], args[1]);
       for (const [hookType, hookMatcher] of Object.entries(terminalIdeHooks)) {
         const existingHooks = settings.hooks[hookType] || [];
 
-        // Remove any existing Terminal IDE hooks for this session
+        // Remove any existing Terminal IDE hooks for this session (match on command content, not matcher)
         const filteredHooks = existingHooks.filter(
-          (h) => !h.matcher.includes(TERMINAL_IDE_HOOK_MARKER) || !h.hooks.some((cmd) => cmd.command.includes(sessionId))
+          (h) => !h.hooks.some((cmd) => cmd.command.includes(sessionId))
         );
 
         // Add our hook

@@ -46,7 +46,8 @@
       "Bash(test:*)",
       "Bash(cmd //c:*)",
       "Bash(git stash:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\joshu\\\\AppData\\\\Local\\\\Temp\\\\terminal-ide-worktrees\\\\feature_look-into-hooks-1769920649212\\\\.claude\"\" 2>/dev/null || echo \"No .claude directory \")"
     ]
   }
 }

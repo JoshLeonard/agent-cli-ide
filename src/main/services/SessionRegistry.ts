@@ -145,7 +145,7 @@ export class SessionRegistry {
     return this.sessionHooksConfigured.get(sessionId) ?? false;
   }
 
-  restoreSession(info: SessionInfo): Session {
+  async restoreSession(info: SessionInfo): Promise<{ session: Session; hooksConfigured: boolean }> {
     const session = new Session({
       id: info.id,
       type: info.type,
@@ -155,7 +155,22 @@ export class SessionRegistry {
       agentId: info.agentId,
     });
     this.sessions.set(session.id, session);
-    return session;
+
+    // Configure hooks for Claude Code sessions
+    let hooksConfigured = false;
+    if (info.agentId === 'claude-code') {
+      const sessionCwd = info.worktreePath || info.cwd;
+      hooksConfigured = await claudeHooksManager.ensureHooksConfigured(sessionCwd, session.id);
+      if (hooksConfigured) {
+        hookStateWatcherService.watchSession(session.id);
+        this.sessionHooksConfigured.set(session.id, true);
+      }
+    }
+
+    await session.start();
+    eventBus.emit(Events.SESSION_UPDATED, { session: session.toInfo() });
+
+    return { session, hooksConfigured };
   }
 }
 

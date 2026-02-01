@@ -7,6 +7,7 @@ import type { AgentActivityState, HookStateEvent } from '../../shared/types/agen
 interface WatchedSession {
   sessionId: string;
   watcher: fs.FSWatcher | null;
+  pollInterval: ReturnType<typeof setInterval> | null;
   lastState: AgentActivityState | null;
   lastTimestamp: number;
 }
@@ -56,6 +57,7 @@ export class HookStateWatcherService {
     const watchedSession: WatchedSession = {
       sessionId,
       watcher: null,
+      pollInterval: null,
       lastState: null,
       lastTimestamp: 0,
     };
@@ -81,13 +83,18 @@ export class HookStateWatcherService {
         // Watcher error - file might have been deleted, stop watching
         this.unwatchSession(sessionId);
       });
-
-      this.watchedSessions.set(sessionId, watchedSession);
     } catch {
       // Could not set up watcher - file might not exist yet
-      // We'll still track the session for manual checks
-      this.watchedSessions.set(sessionId, watchedSession);
+      // Polling fallback will still work
     }
+
+    // Always set up polling as fallback (1 second interval)
+    // fs.watch() can miss events on some platforms (especially Windows)
+    watchedSession.pollInterval = setInterval(() => {
+      this.handleStateFileChange(sessionId);
+    }, 1000);
+
+    this.watchedSessions.set(sessionId, watchedSession);
   }
 
   unwatchSession(sessionId: string): void {
@@ -98,6 +105,10 @@ export class HookStateWatcherService {
 
     if (session.watcher) {
       session.watcher.close();
+    }
+
+    if (session.pollInterval) {
+      clearInterval(session.pollInterval);
     }
 
     // Clean up state file
