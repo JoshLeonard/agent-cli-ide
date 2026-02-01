@@ -112,6 +112,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return projectService.getCurrentProject();
   });
 
+  ipcMain.handle('project:getRecent', async () => {
+    return persistenceService.getRecentProjects();
+  });
+
   // Worktree handlers
   ipcMain.handle('worktree:list', async (_event, { repoPath }: { repoPath: string }) => {
     return gitWorktreeManager.listWorktrees(repoPath);
@@ -245,6 +249,7 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeHandler('project:open');
   ipcMain.removeHandler('project:close');
   ipcMain.removeHandler('project:getCurrent');
+  ipcMain.removeHandler('project:getRecent');
   ipcMain.removeHandler('worktree:list');
   ipcMain.removeHandler('worktree:remove');
   ipcMain.removeHandler('worktree:cleanOrphaned');

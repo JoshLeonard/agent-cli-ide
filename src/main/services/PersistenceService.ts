@@ -4,6 +4,7 @@ import { app } from 'electron';
 import type { SessionInfo } from '../../shared/types/session';
 import type { PersistedLayoutState, GridLayoutState, GridConfig, TerminalPanel } from '../../shared/types/layout';
 import { isGridLayoutState } from '../../shared/types/layout';
+import type { RecentProject } from '../../shared/types/ipc';
 
 export interface PersistedState {
   sessions: SessionInfo[];
@@ -13,7 +14,10 @@ export interface PersistedState {
 
 export interface ExtendedPersistedState extends PersistedState {
   projectPath?: string;
+  recentProjects?: RecentProject[];
 }
+
+const MAX_RECENT_PROJECTS = 10;
 
 // Default grid configuration
 const DEFAULT_GRID_CONFIG: GridConfig = {
@@ -30,11 +34,13 @@ export class PersistenceService {
   }
 
   async save(sessions: SessionInfo[], layout: PersistedLayoutState, projectPath?: string): Promise<void> {
+    const existing = await this.load();
     const state: ExtendedPersistedState = {
       sessions: sessions.filter((s) => s.status !== 'terminated'),
       layout,
       lastSaved: Date.now(),
       projectPath,
+      recentProjects: existing?.recentProjects,
     };
 
     try {
@@ -94,6 +100,48 @@ export class PersistenceService {
     } catch {
       // File doesn't exist
     }
+  }
+
+  async addRecentProject(project: RecentProject): Promise<void> {
+    const existing = await this.load();
+    let recentProjects = existing?.recentProjects || [];
+
+    // Remove duplicate if exists (will be re-added at top)
+    recentProjects = recentProjects.filter((p) => p.path !== project.path);
+
+    // Add new project at the beginning
+    recentProjects.unshift(project);
+
+    // Limit to max recent projects
+    recentProjects = recentProjects.slice(0, MAX_RECENT_PROJECTS);
+
+    // Save updated state
+    const defaultLayout: GridLayoutState = {
+      version: 3,
+      config: { rows: 2, cols: 5 },
+      panels: this.createDefaultPanels({ rows: 2, cols: 5 }),
+    };
+
+    const state: ExtendedPersistedState = {
+      sessions: existing?.sessions || [],
+      layout: existing?.layout || defaultLayout,
+      lastSaved: Date.now(),
+      projectPath: existing?.projectPath,
+      recentProjects,
+    };
+
+    try {
+      const dir = path.dirname(this.filePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(this.filePath, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('Failed to save recent projects:', error);
+    }
+  }
+
+  async getRecentProjects(): Promise<RecentProject[]> {
+    const state = await this.load();
+    return state?.recentProjects || [];
   }
 
   private createDefaultPanels(config: GridConfig): TerminalPanel[] {

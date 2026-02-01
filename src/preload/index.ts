@@ -5,7 +5,7 @@ import type {
   SessionCreateResult,
 } from '../shared/types/session';
 import type { PersistedLayoutState } from '../shared/types/layout';
-import type { PersistedState } from '../shared/types/ipc';
+import type { PersistedState, RecentProject } from '../shared/types/ipc';
 import type { AgentConfig } from '../shared/types/agent';
 import type { ProjectInfo } from '../shared/types/project';
 import type { IpcEvents, WorktreeInfo, WorktreeResult } from '../shared/types/ipc';
@@ -104,6 +104,9 @@ const api = {
 
     getCurrent: (): Promise<ProjectInfo | null> =>
       ipcRenderer.invoke('project:getCurrent'),
+
+    getRecent: (): Promise<RecentProject[]> =>
+      ipcRenderer.invoke('project:getRecent'),
 
     onUpdated: (callback: EventCallback<IpcEvents['project:updated']>) => {
       const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['project:updated']) => callback(data);
