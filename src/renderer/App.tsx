@@ -6,27 +6,17 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { StatusBar } from './components/StatusBar';
 import { QuickSendDialog } from './components/messaging/QuickSendDialog';
 import { ToastContainer } from './components/ui/Toast';
+import { TitleBar } from './components/titlebar/TitleBar';
 import { useLayoutStore } from './stores/layoutStore';
 import { useProjectStore } from './stores/projectStore';
 import { useMessagingStore } from './stores/messagingStore';
 import type { SessionType } from '../shared/types/session';
 import './components/messaging/QuickSendDialog.css';
 
-// Grid preset options
-const GRID_PRESETS = [
-  { label: '1×1', rows: 1, cols: 1 },
-  { label: '1×2', rows: 1, cols: 2 },
-  { label: '2×2', rows: 2, cols: 2 },
-  { label: '2×3', rows: 2, cols: 3 },
-  { label: '2×4', rows: 2, cols: 4 },
-  { label: '2×5', rows: 2, cols: 5 },
-  { label: '3×3', rows: 3, cols: 3 },
-];
-
 const App: React.FC = () => {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [pendingPanelId, setPendingPanelId] = useState<string | null>(null);
-  const [isGridDropdownOpen, setGridDropdownOpen] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const currentProject = useProjectStore((state) => state.currentProject);
   const setProject = useProjectStore((state) => state.setProject);
@@ -148,15 +138,6 @@ const App: React.FC = () => {
       window.removeEventListener('beforeunload', saveLayout);
     };
   }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!isGridDropdownOpen) return;
-
-    const handleClick = () => setGridDropdownOpen(false);
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [isGridDropdownOpen]);
 
   // Keyboard shortcuts for messaging
   useEffect(() => {
@@ -325,6 +306,33 @@ const App: React.FC = () => {
 
   const activeSessionCount = getActiveSessionCount();
 
+  // Handler for opening project
+  const handleOpenProject = async () => {
+    const path = await window.terminalIDE.dialog.selectDirectory();
+    if (path) {
+      await window.terminalIDE.project.open(path);
+    }
+  };
+
+  // Handler for opening new session dialog
+  const handleNewSession = () => {
+    setDialogOpen(true);
+  };
+
+  // Handler for copy to shared clipboard
+  const handleCopyShared = async () => {
+    // Get selected text from terminal - this would need terminal selection API
+    console.log('Copy to shared clipboard');
+  };
+
+  // Handler for toggle sidebar
+  const handleToggleSidebar = () => {
+    setSidebarVisible(!sidebarVisible);
+  };
+
+  // Check if active session exists
+  const hasActiveSession = !!(activePanel && panels.find(p => p.id === activePanel)?.sessionId);
+
   // Show welcome screen if no project is open
   if (!currentProject) {
     return (
@@ -336,52 +344,28 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
-      <div className="toolbar">
-        <span className="toolbar-title">Terminal IDE</span>
-
-        <div className="grid-selector" onClick={(e) => e.stopPropagation()}>
-          <button
-            className="grid-selector-button"
-            onClick={() => setGridDropdownOpen(!isGridDropdownOpen)}
-          >
-            Grid: {gridConfig.rows}×{gridConfig.cols} ▼
-          </button>
-          {isGridDropdownOpen && (
-            <div className="grid-selector-dropdown">
-              {GRID_PRESETS.map((preset) => {
-                const totalCells = preset.rows * preset.cols;
-                const isDisabled = totalCells < activeSessionCount;
-                const isSelected = preset.rows === gridConfig.rows && preset.cols === gridConfig.cols;
-                return (
-                  <button
-                    key={preset.label}
-                    className={`grid-selector-option ${isSelected ? 'selected' : ''}`}
-                    disabled={isDisabled}
-                    onClick={() => {
-                      handleGridPresetChange(preset.rows, preset.cols);
-                      setGridDropdownOpen(false);
-                    }}
-                    title={isDisabled ? `Cannot shrink: ${activeSessionCount} active sessions` : ''}
-                  >
-                    {preset.label}
-                    {isSelected && ' ✓'}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {activePanel && panels.find(p => p.id === activePanel)?.sessionId && (
-          <button onClick={() => handleTerminateSession()}>Terminate</button>
-        )}
-      </div>
+      <TitleBar
+        gridConfig={gridConfig}
+        onGridChange={handleGridPresetChange}
+        activeSessionCount={activeSessionCount}
+        onNewSession={handleNewSession}
+        onOpenProject={handleOpenProject}
+        onTerminateSession={() => handleTerminateSession()}
+        onSendMessage={openQuickSend}
+        onBroadcast={openQuickSend}
+        onCopyShared={handleCopyShared}
+        onPasteShared={handlePasteSharedClipboard}
+        onToggleSidebar={handleToggleSidebar}
+        hasActiveSession={hasActiveSession}
+      />
 
       <div className="main-container">
-        <SessionSidebar
-          onSelectSession={handleSelectSession}
-          onTerminateSession={handleTerminateSession}
-        />
+        {sidebarVisible && (
+          <SessionSidebar
+            onSelectSession={handleSelectSession}
+            onTerminateSession={handleTerminateSession}
+          />
+        )}
         <div className="main-content">
           <GridLayout
             panels={panels}

@@ -200,6 +200,30 @@ const api = {
       return () => ipcRenderer.removeListener('message:received', handler);
     },
   },
+
+  // Window controls
+  window: {
+    minimize: (): Promise<void> =>
+      ipcRenderer.invoke('window:minimize'),
+
+    maximize: (): Promise<void> =>
+      ipcRenderer.invoke('window:maximize'),
+
+    close: (): Promise<void> =>
+      ipcRenderer.invoke('window:close'),
+
+    isMaximized: (): Promise<boolean> =>
+      ipcRenderer.invoke('window:isMaximized'),
+
+    getPlatform: (): Promise<NodeJS.Platform> =>
+      ipcRenderer.invoke('window:getPlatform'),
+
+    onMaximizeChanged: (callback: EventCallback<IpcEvents['window:maximizeChanged']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['window:maximizeChanged']) => callback(data);
+      ipcRenderer.on('window:maximizeChanged', handler);
+      return () => ipcRenderer.removeListener('window:maximizeChanged', handler);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('terminalIDE', api);

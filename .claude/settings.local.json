@@ -39,7 +39,12 @@
       "Bash(node --version:*)",
       "Bash(npx electron-rebuild:*)",
       "Bash(node install.js:*)",
-      "Bash(cmd /c \"mklink /J node_modules \"\"C:\\\\Users\\\\joshu\\\\dev\\\\agent-cli-ide\\\\node_modules\"\"\")"
+      "Bash(cmd /c \"mklink /J node_modules \"\"C:\\\\Users\\\\joshu\\\\dev\\\\agent-cli-ide\\\\node_modules\"\"\")",
+      "Bash(git merge:*)",
+      "WebSearch",
+      "WebFetch(domain:www.electronjs.org)",
+      "Bash(test:*)",
+      "Bash(cmd //c:*)"
     ]
   }
 }
