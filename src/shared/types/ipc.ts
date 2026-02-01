@@ -20,6 +20,7 @@ export interface PersistedState {
   lastSaved: number;
   projectPath?: string;
   recentProjects?: RecentProject[];
+  worktreeAgentPrefs?: Record<string, string>; // worktreePath → agentId
 }
 
 // Request/Response channels (invoke/handle)
@@ -115,6 +116,14 @@ export interface IpcChannels {
   'worktree:isGitRepo': {
     request: { path: string };
     response: boolean;
+  };
+  'worktree:getAgentPrefs': {
+    request: void;
+    response: Record<string, string>;
+  };
+  'worktree:setAgentPref': {
+    request: { worktreePath: string; agentId: string };
+    response: { success: boolean };
   };
   // Agent Status
   'agentStatus:get': {

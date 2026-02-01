@@ -15,6 +15,7 @@ export interface PersistedState {
 export interface ExtendedPersistedState extends PersistedState {
   projectPath?: string;
   recentProjects?: RecentProject[];
+  worktreeAgentPrefs?: Record<string, string>; // worktreePath → agentId
 }
 
 const MAX_RECENT_PROJECTS = 10;
@@ -41,6 +42,7 @@ export class PersistenceService {
       lastSaved: Date.now(),
       projectPath: projectPath ?? existing?.projectPath,
       recentProjects: existing?.recentProjects,
+      worktreeAgentPrefs: existing?.worktreeAgentPrefs,
     };
 
     try {
@@ -142,6 +144,40 @@ export class PersistenceService {
   async getRecentProjects(): Promise<RecentProject[]> {
     const state = await this.load();
     return state?.recentProjects || [];
+  }
+
+  async getWorktreeAgentPrefs(): Promise<Record<string, string>> {
+    const state = await this.load();
+    return state?.worktreeAgentPrefs || {};
+  }
+
+  async setWorktreeAgentPref(worktreePath: string, agentId: string): Promise<void> {
+    const existing = await this.load();
+    const defaultLayout: GridLayoutState = {
+      version: 3,
+      config: DEFAULT_GRID_CONFIG,
+      panels: this.createDefaultPanels(DEFAULT_GRID_CONFIG),
+    };
+
+    const worktreeAgentPrefs = existing?.worktreeAgentPrefs || {};
+    worktreeAgentPrefs[worktreePath] = agentId;
+
+    const state: ExtendedPersistedState = {
+      sessions: existing?.sessions || [],
+      layout: existing?.layout || defaultLayout,
+      lastSaved: Date.now(),
+      projectPath: existing?.projectPath,
+      recentProjects: existing?.recentProjects,
+      worktreeAgentPrefs,
+    };
+
+    try {
+      const dir = path.dirname(this.filePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(this.filePath, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('Failed to save worktree agent preference:', error);
+    }
   }
 
   private createDefaultPanels(config: GridConfig): TerminalPanel[] {

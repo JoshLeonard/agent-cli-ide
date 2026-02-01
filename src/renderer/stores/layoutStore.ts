@@ -81,6 +81,7 @@ interface LayoutStore {
   // Worktree agent preferences
   getWorktreeAgent: (worktreePath: string) => string | undefined;
   setWorktreeAgent: (worktreePath: string, agentId: string) => void;
+  loadWorktreeAgentPrefsFromBackend: () => Promise<void>;
 }
 
 // Helper to collect panels from legacy tree structure
@@ -91,27 +92,8 @@ function collectPanelsFromTree(node: LayoutNode): TerminalPanel[] {
   return node.children.flatMap(collectPanelsFromTree);
 }
 
-// Load worktree agent preferences from localStorage
-const loadWorktreeAgentPrefs = (): Map<string, string> => {
-  try {
-    const stored = localStorage.getItem('worktreeAgentPrefs');
-    if (stored) {
-      return new Map(JSON.parse(stored));
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return new Map();
-};
-
-// Save worktree agent preferences to localStorage
-const saveWorktreeAgentPrefs = (prefs: Map<string, string>) => {
-  try {
-    localStorage.setItem('worktreeAgentPrefs', JSON.stringify(Array.from(prefs.entries())));
-  } catch {
-    // Ignore storage errors
-  }
-};
+// Worktree agent preferences are now loaded from the backend via IPC
+// See loadWorktreeAgentPrefsFromBackend() method in the store
 
 export const useLayoutStore = create<LayoutStore>((set, get) => ({
   gridConfig: DEFAULT_GRID_CONFIG,
@@ -119,7 +101,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   activePanel: null,
   sessions: new Map(),
   agentStatuses: new Map(),
-  worktreeAgentPrefs: loadWorktreeAgentPrefs(),
+  worktreeAgentPrefs: new Map(), // Loaded from backend via loadWorktreeAgentPrefsFromBackend()
 
   setGridDimensions: (rows: number, cols: number) => {
     const state = get();
@@ -350,8 +332,18 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     set((state) => {
       const newPrefs = new Map(state.worktreeAgentPrefs);
       newPrefs.set(worktreePath, agentId);
-      saveWorktreeAgentPrefs(newPrefs);
+      // Persist to backend
+      window.terminalIDE.worktree.setAgentPref(worktreePath, agentId);
       return { worktreeAgentPrefs: newPrefs };
     });
+  },
+
+  loadWorktreeAgentPrefsFromBackend: async () => {
+    try {
+      const prefs = await window.terminalIDE.worktree.getAgentPrefs();
+      set({ worktreeAgentPrefs: new Map(Object.entries(prefs)) });
+    } catch (error) {
+      console.error('Failed to load worktree agent preferences:', error);
+    }
   },
 }));

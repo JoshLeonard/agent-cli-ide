@@ -153,6 +153,15 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
     return gitWorktreeManager.isGitRepo(path);
   });
 
+  ipcMain.handle('worktree:getAgentPrefs', async () => {
+    return persistenceService.getWorktreeAgentPrefs();
+  });
+
+  ipcMain.handle('worktree:setAgentPref', async (_event, { worktreePath, agentId }: { worktreePath: string; agentId: string }) => {
+    await persistenceService.setWorktreeAgentPref(worktreePath, agentId);
+    return { success: true };
+  });
+
   // Agent status handlers
   ipcMain.handle('agentStatus:get', (_event, { sessionId }: { sessionId: string }) => {
     return agentStatusTracker.getStatus(sessionId);
@@ -382,6 +391,8 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeHandler('worktree:remove');
   ipcMain.removeHandler('worktree:cleanOrphaned');
   ipcMain.removeHandler('worktree:isGitRepo');
+  ipcMain.removeHandler('worktree:getAgentPrefs');
+  ipcMain.removeHandler('worktree:setAgentPref');
   ipcMain.removeHandler('agentStatus:get');
   ipcMain.removeHandler('agentStatus:getAll');
   ipcMain.removeHandler('activity:getEvents');

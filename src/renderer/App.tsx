@@ -46,6 +46,7 @@ const App: React.FC = () => {
     findFirstEmptyPanel,
     getWorktreeAgent,
     setWorktreeAgent,
+    loadWorktreeAgentPrefsFromBackend,
   } = useLayoutStore();
 
   // Load settings on mount
@@ -98,6 +99,9 @@ const App: React.FC = () => {
     let mounted = true;
 
     const syncSessions = async () => {
+      // Load worktree agent preferences from backend
+      await loadWorktreeAgentPrefsFromBackend();
+
       // Get actual sessions from backend
       const backendSessions = await window.terminalIDE.session.list();
 
@@ -151,21 +155,31 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Save layout periodically
+  // Save layout when panels change (debounced) and periodically
   useEffect(() => {
     const saveLayout = () => {
       const layout = getLayout();
       window.terminalIDE.layout.save(layout);
     };
 
+    // Debounced save for immediate changes
+    let debounceTimer: NodeJS.Timeout | null = null;
+    const debouncedSave = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(saveLayout, 500);
+    };
+
+    // Save when panels change
+    debouncedSave();
+
+    // Also save periodically as a fallback
     const interval = setInterval(saveLayout, 30000);
-    window.addEventListener('beforeunload', saveLayout);
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       clearInterval(interval);
-      window.removeEventListener('beforeunload', saveLayout);
     };
-  }, []);
+  }, [panels, gridConfig]);
 
   // Keyboard shortcuts for messaging and settings
   useEffect(() => {

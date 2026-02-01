@@ -130,6 +130,12 @@ const api = {
     isGitRepo: (path: string): Promise<boolean> =>
       ipcRenderer.invoke('worktree:isGitRepo', { path }),
 
+    getAgentPrefs: (): Promise<Record<string, string>> =>
+      ipcRenderer.invoke('worktree:getAgentPrefs'),
+
+    setAgentPref: (worktreePath: string, agentId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('worktree:setAgentPref', { worktreePath, agentId }),
+
     onChanged: (callback: EventCallback<IpcEvents['worktree:changed']>) => {
       const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['worktree:changed']) => callback(data);
       ipcRenderer.on('worktree:changed', handler);
