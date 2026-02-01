@@ -33,7 +33,10 @@
       "Bash(cd:*)",
       "Bash(npx eslint:*)",
       "Bash(git remote add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node --version:*)",
+      "Bash(npx electron-rebuild:*)",
+      "Bash(node install.js:*)"
     ]
   }
 }
