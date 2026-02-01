@@ -72,6 +72,8 @@ interface LayoutStore {
   // Utilities
   findPanelBySessionId: (sessionId: string) => string | null;
   findPanelById: (panelId: string) => TerminalPanel | null;
+  findPanelByWorktreePath: (worktreePath: string) => string | null;
+  moveSessionToPanel: (sessionId: string, targetPanelId: string) => void;
   getLayout: () => GridLayoutState;
   setLayout: (layout: PersistedLayoutState) => void;
   getAllPanels: () => TerminalPanel[];
@@ -247,6 +249,38 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
 
   findPanelById: (panelId: string) => {
     return get().panels.find(p => p.id === panelId) || null;
+  },
+
+  findPanelByWorktreePath: (worktreePath: string) => {
+    const state = get();
+    // Normalize path for comparison (handle Windows path differences)
+    const normalizePath = (p: string) => p.toLowerCase().replace(/\\/g, '/');
+    const normalizedWorktreePath = normalizePath(worktreePath);
+
+    for (const panel of state.panels) {
+      if (panel.sessionId) {
+        const session = state.sessions.get(panel.sessionId);
+        if (session && normalizePath(session.cwd) === normalizedWorktreePath) {
+          return panel.id;
+        }
+      }
+    }
+    return null;
+  },
+
+  moveSessionToPanel: (sessionId: string, targetPanelId: string) => {
+    set((state) => {
+      const newPanels = state.panels.map(p => {
+        if (p.sessionId === sessionId) {
+          return { ...p, sessionId: null };
+        }
+        if (p.id === targetPanelId) {
+          return { ...p, sessionId };
+        }
+        return p;
+      });
+      return { panels: newPanels, activePanel: targetPanelId };
+    });
   },
 
   getLayout: (): GridLayoutState => {

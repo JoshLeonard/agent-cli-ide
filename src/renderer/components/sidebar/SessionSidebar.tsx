@@ -139,10 +139,18 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     return unsubscribe;
   }, [updateAgentStatus]);
 
+  // Normalize path for comparison (handle Windows path differences)
+  const normalizePath = (p: string) => p.toLowerCase().replace(/\\/g, '/');
+
   // Check if a worktree has an active session
+  // Check both worktreePath and cwd since sessions created via drag-drop only have cwd set
   const getWorktreeSession = (worktreePath: string): SessionInfo | undefined => {
+    const normalizedWorktreePath = normalizePath(worktreePath);
     return sessionList.find(
-      session => session.worktreePath === worktreePath && session.status === 'running'
+      session => {
+        const sessionPath = session.worktreePath || session.cwd;
+        return normalizePath(sessionPath) === normalizedWorktreePath && session.status === 'running';
+      }
     );
   };
 

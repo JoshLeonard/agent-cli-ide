@@ -119,6 +119,52 @@ export class SessionRegistry {
     return Array.from(this.sessions.values()).map((s) => s.toInfo());
   }
 
+  /**
+   * Find all sessions associated with a given worktree path.
+   * Checks both worktreePath and cwd since drag-drop sessions only set cwd.
+   * Normalizes paths for comparison (handles Windows path differences).
+   */
+  findSessionsByWorktreePath(worktreePath: string): Session[] {
+    const normalizePath = (p: string) => p.toLowerCase().replace(/\\/g, '/');
+    const normalizedWorktreePath = normalizePath(worktreePath);
+
+    return Array.from(this.sessions.values()).filter(session => {
+      const sessionPath = session.worktreePath || session.cwd;
+      return normalizePath(sessionPath) === normalizedWorktreePath;
+    });
+  }
+
+  /**
+   * Terminate all sessions associated with a given worktree path.
+   * Used when a worktree is deleted to clean up associated sessions.
+   */
+  async terminateSessionsForWorktree(worktreePath: string): Promise<string[]> {
+    const sessionsToTerminate = this.findSessionsByWorktreePath(worktreePath);
+    const terminatedIds: string[] = [];
+
+    for (const session of sessionsToTerminate) {
+      try {
+        await session.terminateAsync();
+
+        // Clean up hooks
+        const sessionCwd = session.worktreePath || session.cwd;
+        await sessionHookManager.cleanupHooks(session.id, sessionCwd);
+
+        this.sessions.delete(session.id);
+        terminatedIds.push(session.id);
+
+        eventBus.emit(Events.SESSION_TERMINATED, {
+          sessionId: session.id,
+          exitCode: 0,
+        });
+      } catch (error) {
+        console.error(`Failed to terminate session ${session.id}:`, error);
+      }
+    }
+
+    return terminatedIds;
+  }
+
   terminateAll(): void {
     for (const [sessionId, session] of this.sessions) {
       // Clean up hooks synchronously for speed
