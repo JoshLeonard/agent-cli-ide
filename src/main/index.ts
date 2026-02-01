@@ -15,6 +15,9 @@ async function createWindow(): Promise<void> {
     height: 900,
     minWidth: 800,
     minHeight: 600,
+    frame: false,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 12, y: 10 } } : {}),
     webPreferences: {
       preload: path.join(__dirname, '../../preload/preload/index.js'),
       contextIsolation: true,
