@@ -2,7 +2,7 @@ import type { SessionConfig, SessionInfo, SessionCreateResult } from './session'
 import type { PersistedLayoutState } from './layout';
 import type { AgentConfig } from './agent';
 import type { ProjectInfo } from './project';
-import type { WorktreeInfo, WorktreeResult } from '../../main/services/GitWorktreeManager';
+import type { WorktreeInfo, WorktreeResult } from './worktree';
 import type { AgentStatus } from './agentStatus';
 import type { ActivityEvent, ActivityFilter } from './activity';
 import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from './messaging';
@@ -248,4 +248,4 @@ export type IpcChannel = keyof IpcChannels;
 export type IpcEvent = keyof IpcEvents;
 
 // Re-export worktree types for convenience
-export type { WorktreeInfo, WorktreeResult } from '../../main/services/GitWorktreeManager';
+export type { WorktreeInfo, WorktreeResult } from './worktree';
