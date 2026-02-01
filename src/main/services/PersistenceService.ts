@@ -39,7 +39,7 @@ export class PersistenceService {
       sessions: sessions.filter((s) => s.status !== 'terminated'),
       layout,
       lastSaved: Date.now(),
-      projectPath,
+      projectPath: projectPath ?? existing?.projectPath,
       recentProjects: existing?.recentProjects,
     };
 
