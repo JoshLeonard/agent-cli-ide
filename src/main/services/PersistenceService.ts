@@ -4,18 +4,7 @@ import { app } from 'electron';
 import type { SessionInfo } from '../../shared/types/session';
 import type { PersistedLayoutState, GridLayoutState, GridConfig, TerminalPanel } from '../../shared/types/layout';
 import { isGridLayoutState } from '../../shared/types/layout';
-import type { RecentProject } from '../../shared/types/ipc';
-
-export interface PersistedState {
-  sessions: SessionInfo[];
-  layout: PersistedLayoutState;
-  lastSaved: number;
-}
-
-export interface ExtendedPersistedState extends PersistedState {
-  projectPath?: string;
-  recentProjects?: RecentProject[];
-}
+import type { PersistedState, RecentProject } from '../../shared/types/ipc';
 
 const MAX_RECENT_PROJECTS = 10;
 
@@ -35,12 +24,13 @@ export class PersistenceService {
 
   async save(sessions: SessionInfo[], layout: PersistedLayoutState, projectPath?: string): Promise<void> {
     const existing = await this.load();
-    const state: ExtendedPersistedState = {
-      sessions: sessions.filter((s) => s.status !== 'terminated'),
+    const state: PersistedState = {
+      sessions: sessions.filter((s) => s.status === 'running' || s.status === 'initializing'),
       layout,
       lastSaved: Date.now(),
       projectPath: projectPath ?? existing?.projectPath,
       recentProjects: existing?.recentProjects,
+      worktreeAgentPrefs: existing?.worktreeAgentPrefs,
     };
 
     try {
@@ -52,10 +42,10 @@ export class PersistenceService {
     }
   }
 
-  async load(): Promise<ExtendedPersistedState | null> {
+  async load(): Promise<PersistedState | null> {
     try {
       const content = await fs.readFile(this.filePath, 'utf-8');
-      const state = JSON.parse(content) as ExtendedPersistedState;
+      const state = JSON.parse(content) as PersistedState;
 
       // Ensure layout has proper structure
       if (state.layout) {
@@ -122,7 +112,7 @@ export class PersistenceService {
       panels: this.createDefaultPanels({ rows: 2, cols: 5 }),
     };
 
-    const state: ExtendedPersistedState = {
+    const state: PersistedState = {
       sessions: existing?.sessions || [],
       layout: existing?.layout || defaultLayout,
       lastSaved: Date.now(),
@@ -142,6 +132,40 @@ export class PersistenceService {
   async getRecentProjects(): Promise<RecentProject[]> {
     const state = await this.load();
     return state?.recentProjects || [];
+  }
+
+  async getWorktreeAgentPrefs(): Promise<Record<string, string>> {
+    const state = await this.load();
+    return state?.worktreeAgentPrefs || {};
+  }
+
+  async setWorktreeAgentPref(worktreePath: string, agentId: string): Promise<void> {
+    const existing = await this.load();
+    const defaultLayout: GridLayoutState = {
+      version: 3,
+      config: DEFAULT_GRID_CONFIG,
+      panels: this.createDefaultPanels(DEFAULT_GRID_CONFIG),
+    };
+
+    const worktreeAgentPrefs = existing?.worktreeAgentPrefs || {};
+    worktreeAgentPrefs[worktreePath] = agentId;
+
+    const state: PersistedState = {
+      sessions: existing?.sessions || [],
+      layout: existing?.layout || defaultLayout,
+      lastSaved: Date.now(),
+      projectPath: existing?.projectPath,
+      recentProjects: existing?.recentProjects,
+      worktreeAgentPrefs,
+    };
+
+    try {
+      const dir = path.dirname(this.filePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(this.filePath, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('Failed to save worktree agent preference:', error);
+    }
   }
 
   private createDefaultPanels(config: GridConfig): TerminalPanel[] {

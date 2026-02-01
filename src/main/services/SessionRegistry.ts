@@ -1,13 +1,11 @@
 import { Session } from '../session/Session';
 import { eventBus, Events } from './EventBus';
 import { gitWorktreeManager } from './GitWorktreeManager';
-import { claudeHooksManager } from './ClaudeHooksManager';
-import { hookStateWatcherService } from './HookStateWatcherService';
+import { sessionHookManager } from './SessionHookManager';
 import type { SessionConfig, SessionInfo, SessionCreateResult } from '../../shared/types/session';
 
 export class SessionRegistry {
   private sessions: Map<string, Session> = new Map();
-  private sessionHooksConfigured: Map<string, boolean> = new Map();
 
   async createSession(config: SessionConfig): Promise<SessionCreateResult> {
     try {
@@ -36,15 +34,12 @@ export class SessionRegistry {
       this.sessions.set(session.id, session);
 
       // Configure hooks for Claude Code sessions
-      let hooksConfigured = false;
-      if (config.agentId === 'claude-code') {
-        const sessionCwd = worktreePath || config.cwd;
-        hooksConfigured = await claudeHooksManager.ensureHooksConfigured(sessionCwd, session.id);
-        if (hooksConfigured) {
-          hookStateWatcherService.watchSession(session.id);
-          this.sessionHooksConfigured.set(session.id, true);
-        }
-      }
+      const sessionCwd = worktreePath || config.cwd;
+      const hooksConfigured = await sessionHookManager.configureHooks(
+        config.agentId,
+        session.id,
+        sessionCwd
+      );
 
       await session.start();
 
@@ -77,13 +72,9 @@ export class SessionRegistry {
       // Wait for actual process exit
       await session.terminateAsync();
 
-      // Clean up hooks for Claude Code sessions
-      if (this.sessionHooksConfigured.get(sessionId)) {
-        hookStateWatcherService.unwatchSession(sessionId);
-        const sessionCwd = session.worktreePath || session.cwd;
-        await claudeHooksManager.cleanupHooks(sessionCwd, sessionId);
-        this.sessionHooksConfigured.delete(sessionId);
-      }
+      // Clean up hooks
+      const sessionCwd = session.worktreePath || session.cwd;
+      await sessionHookManager.cleanupHooks(sessionId, sessionCwd);
 
       // Clean up worktree if isolated session
       if (session.type === 'isolated' && session.worktreePath) {
@@ -128,24 +119,76 @@ export class SessionRegistry {
     return Array.from(this.sessions.values()).map((s) => s.toInfo());
   }
 
+  /**
+   * Find all sessions associated with a given worktree path.
+   * Checks both worktreePath and cwd since drag-drop sessions only set cwd.
+   * Normalizes paths for comparison (handles Windows path differences).
+   */
+  findSessionsByWorktreePath(worktreePath: string): Session[] {
+    const normalizePath = (p: string) => p.toLowerCase().replace(/\\/g, '/');
+    const normalizedWorktreePath = normalizePath(worktreePath);
+
+    return Array.from(this.sessions.values()).filter(session => {
+      const sessionPath = session.worktreePath || session.cwd;
+      return normalizePath(sessionPath) === normalizedWorktreePath;
+    });
+  }
+
+  /**
+   * Terminate all sessions associated with a given worktree path.
+   * Used when a worktree is deleted to clean up associated sessions.
+   */
+  async terminateSessionsForWorktree(worktreePath: string): Promise<string[]> {
+    const sessionsToTerminate = this.findSessionsByWorktreePath(worktreePath);
+    const terminatedIds: string[] = [];
+
+    for (const session of sessionsToTerminate) {
+      try {
+        await session.terminateAsync();
+
+        // Clean up hooks
+        const sessionCwd = session.worktreePath || session.cwd;
+        await sessionHookManager.cleanupHooks(session.id, sessionCwd);
+
+        this.sessions.delete(session.id);
+        terminatedIds.push(session.id);
+
+        eventBus.emit(Events.SESSION_TERMINATED, {
+          sessionId: session.id,
+          exitCode: 0,
+        });
+      } catch (error) {
+        console.error(`Failed to terminate session ${session.id}:`, error);
+      }
+    }
+
+    return terminatedIds;
+  }
+
   terminateAll(): void {
     for (const [sessionId, session] of this.sessions) {
-      // Clean up hooks
-      if (this.sessionHooksConfigured.get(sessionId)) {
-        hookStateWatcherService.unwatchSession(sessionId);
-        // Note: async cleanup skipped during terminateAll for speed
-      }
+      // Clean up hooks synchronously for speed
+      sessionHookManager.cleanupHooksSync(sessionId);
       session.terminate();
     }
     this.sessions.clear();
-    this.sessionHooksConfigured.clear();
+    sessionHookManager.clearAll();
   }
 
   isHooksConfigured(sessionId: string): boolean {
-    return this.sessionHooksConfigured.get(sessionId) ?? false;
+    return sessionHookManager.isHooksConfigured(sessionId);
   }
 
-  async restoreSession(info: SessionInfo): Promise<{ session: Session; hooksConfigured: boolean }> {
+  /**
+   * Restore a session from persisted state.
+   * @param info - The persisted session info
+   * @param autoStart - Whether to automatically start the PTY process (default: false)
+   * @returns Object with session and whether hooks were configured
+   */
+  async restoreSession(
+    info: SessionInfo,
+    autoStart: boolean = false
+  ): Promise<{ session: Session; hooksConfigured: boolean }> {
     const session = new Session({
       id: info.id,
       type: info.type,
@@ -156,19 +199,26 @@ export class SessionRegistry {
     });
     this.sessions.set(session.id, session);
 
-    // Configure hooks for Claude Code sessions
     let hooksConfigured = false;
-    if (info.agentId === 'claude-code') {
-      const sessionCwd = info.worktreePath || info.cwd;
-      hooksConfigured = await claudeHooksManager.ensureHooksConfigured(sessionCwd, session.id);
-      if (hooksConfigured) {
-        hookStateWatcherService.watchSession(session.id);
-        this.sessionHooksConfigured.set(session.id, true);
-      }
-    }
 
-    await session.start();
-    eventBus.emit(Events.SESSION_UPDATED, { session: session.toInfo() });
+    if (autoStart) {
+      // Configure hooks for Claude Code sessions
+      const sessionCwd = info.worktreePath || info.cwd;
+      hooksConfigured = await sessionHookManager.configureHooks(
+        info.agentId,
+        session.id,
+        sessionCwd
+      );
+
+      // Pass isRestored flag so Claude Code uses --continue
+      await session.start({ isRestored: true });
+
+      const sessionInfo = session.toInfo();
+      eventBus.emit(Events.SESSION_CREATED, {
+        session: sessionInfo,
+        hooksConfigured,
+      });
+    }
 
     return { session, hooksConfigured };
   }

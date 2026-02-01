@@ -15,6 +15,7 @@ export interface SpawnOptions {
   env?: Record<string, string>;
   cols?: number;
   rows?: number;
+  isRestored?: boolean;  // Whether this session is being restored from persistence
 }
 
 export class ProcessManager {
@@ -56,7 +57,7 @@ export class ProcessManager {
 
     // For AI agents, send the command to the shell after it starts
     if (options.agent && options.agent.category === 'ai-agent') {
-      const agentCommand = this.buildAgentCommand(options.agent);
+      const agentCommand = this.buildAgentCommand(options.agent, options.isRestored);
       // Small delay to let shell initialize
       setTimeout(() => {
         ptyProcess.write(agentCommand + '\r');
@@ -69,8 +70,14 @@ export class ProcessManager {
     };
   }
 
-  private buildAgentCommand(agent: AgentConfig): string {
+  private buildAgentCommand(agent: AgentConfig, isRestored?: boolean): string {
     const parts = [agent.command, ...(agent.args || [])];
+
+    // For Claude Code, add --continue flag when restoring a saved session
+    if (isRestored && agent.id === 'claude-code') {
+      parts.push('--continue');
+    }
+
     return parts.join(' ');
   }
 

@@ -3,20 +3,12 @@ import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
+import type { WorktreeInfo, WorktreeResult } from '../../shared/types/worktree';
 
 const execAsync = promisify(exec);
 
-export interface WorktreeResult {
-  success: boolean;
-  path?: string;
-  error?: string;
-}
-
-export interface WorktreeInfo {
-  path: string;
-  branch: string;
-  head: string;
-}
+// Re-export types for backward compatibility
+export type { WorktreeInfo, WorktreeResult } from '../../shared/types/worktree';
 
 export class GitWorktreeManager {
   private worktreeBaseDir: string;

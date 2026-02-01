@@ -6,20 +6,13 @@ import { useToastStore } from '../../stores/toastStore';
 import { SessionStatusBadge } from './SessionStatusBadge';
 import { ActivityFeed } from './ActivityFeed';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { focusActiveTerminal } from '../../utils/terminal';
 import type { SessionInfo } from '../../../shared/types/session';
 import type { WorktreeInfo } from '../../../shared/types/ipc';
 import type { AgentStatus } from '../../../shared/types/agentStatus';
 import './SessionSidebar.css';
 import './SessionStatusBadge.css';
 import './ActivityFeed.css';
-
-// Focus the active terminal's xterm textarea (with delay for native dialogs)
-const focusActiveTerminal = () => {
-  setTimeout(() => {
-    const activeTerminal = document.querySelector('.terminal-container.active .xterm-helper-textarea') as HTMLTextAreaElement;
-    activeTerminal?.focus();
-  }, 50);
-};
 
 interface SessionSidebarProps {
   onSelectSession: (sessionId: string) => void;
@@ -146,10 +139,18 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     return unsubscribe;
   }, [updateAgentStatus]);
 
+  // Normalize path for comparison (handle Windows path differences)
+  const normalizePath = (p: string) => p.toLowerCase().replace(/\\/g, '/');
+
   // Check if a worktree has an active session
+  // Check both worktreePath and cwd since sessions created via drag-drop only have cwd set
   const getWorktreeSession = (worktreePath: string): SessionInfo | undefined => {
+    const normalizedWorktreePath = normalizePath(worktreePath);
     return sessionList.find(
-      session => session.worktreePath === worktreePath && session.status === 'running'
+      session => {
+        const sessionPath = session.worktreePath || session.cwd;
+        return normalizePath(sessionPath) === normalizedWorktreePath && session.status === 'running';
+      }
     );
   };
 

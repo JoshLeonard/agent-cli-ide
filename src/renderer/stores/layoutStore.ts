@@ -72,6 +72,8 @@ interface LayoutStore {
   // Utilities
   findPanelBySessionId: (sessionId: string) => string | null;
   findPanelById: (panelId: string) => TerminalPanel | null;
+  findPanelByWorktreePath: (worktreePath: string) => string | null;
+  moveSessionToPanel: (sessionId: string, targetPanelId: string) => void;
   getLayout: () => GridLayoutState;
   setLayout: (layout: PersistedLayoutState) => void;
   getAllPanels: () => TerminalPanel[];
@@ -81,6 +83,7 @@ interface LayoutStore {
   // Worktree agent preferences
   getWorktreeAgent: (worktreePath: string) => string | undefined;
   setWorktreeAgent: (worktreePath: string, agentId: string) => void;
+  loadWorktreeAgentPrefsFromBackend: () => Promise<void>;
 }
 
 // Helper to collect panels from legacy tree structure
@@ -91,27 +94,8 @@ function collectPanelsFromTree(node: LayoutNode): TerminalPanel[] {
   return node.children.flatMap(collectPanelsFromTree);
 }
 
-// Load worktree agent preferences from localStorage
-const loadWorktreeAgentPrefs = (): Map<string, string> => {
-  try {
-    const stored = localStorage.getItem('worktreeAgentPrefs');
-    if (stored) {
-      return new Map(JSON.parse(stored));
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return new Map();
-};
-
-// Save worktree agent preferences to localStorage
-const saveWorktreeAgentPrefs = (prefs: Map<string, string>) => {
-  try {
-    localStorage.setItem('worktreeAgentPrefs', JSON.stringify(Array.from(prefs.entries())));
-  } catch {
-    // Ignore storage errors
-  }
-};
+// Worktree agent preferences are now loaded from the backend via IPC
+// See loadWorktreeAgentPrefsFromBackend() method in the store
 
 export const useLayoutStore = create<LayoutStore>((set, get) => ({
   gridConfig: DEFAULT_GRID_CONFIG,
@@ -119,7 +103,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   activePanel: null,
   sessions: new Map(),
   agentStatuses: new Map(),
-  worktreeAgentPrefs: loadWorktreeAgentPrefs(),
+  worktreeAgentPrefs: new Map(), // Loaded from backend via loadWorktreeAgentPrefsFromBackend()
 
   setGridDimensions: (rows: number, cols: number) => {
     const state = get();
@@ -267,6 +251,38 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     return get().panels.find(p => p.id === panelId) || null;
   },
 
+  findPanelByWorktreePath: (worktreePath: string) => {
+    const state = get();
+    // Normalize path for comparison (handle Windows path differences)
+    const normalizePath = (p: string) => p.toLowerCase().replace(/\\/g, '/');
+    const normalizedWorktreePath = normalizePath(worktreePath);
+
+    for (const panel of state.panels) {
+      if (panel.sessionId) {
+        const session = state.sessions.get(panel.sessionId);
+        if (session && normalizePath(session.cwd) === normalizedWorktreePath) {
+          return panel.id;
+        }
+      }
+    }
+    return null;
+  },
+
+  moveSessionToPanel: (sessionId: string, targetPanelId: string) => {
+    set((state) => {
+      const newPanels = state.panels.map(p => {
+        if (p.sessionId === sessionId) {
+          return { ...p, sessionId: null };
+        }
+        if (p.id === targetPanelId) {
+          return { ...p, sessionId };
+        }
+        return p;
+      });
+      return { panels: newPanels, activePanel: targetPanelId };
+    });
+  },
+
   getLayout: (): GridLayoutState => {
     const state = get();
     return {
@@ -277,16 +293,31 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   },
 
   setLayout: (layout: PersistedLayoutState) => {
+    const state = get();
+
+    // Helper to validate sessionId exists in the sessions map
+    const validateSessionId = (sessionId: string | null): string | null => {
+      if (sessionId && state.sessions.has(sessionId)) {
+        return sessionId;
+      }
+      return null;
+    };
+
     if (isGridLayoutState(layout)) {
-      // New grid format
+      // New grid format - validate sessionIds before setting
+      const validatedPanels = layout.panels.map(panel => ({
+        ...panel,
+        sessionId: validateSessionId(panel.sessionId),
+      }));
       set({
         gridConfig: layout.config,
-        panels: layout.panels,
+        panels: validatedPanels,
       });
     } else if (isTreeLayoutState(layout)) {
       // Migrate from tree layout (version 2)
       const treePanels = collectPanelsFromTree(layout.root);
-      const activePanels = treePanels.filter(p => p.sessionId !== null);
+      // Only include panels with valid sessionIds
+      const activePanels = treePanels.filter(p => p.sessionId !== null && validateSessionId(p.sessionId));
 
       // Create a grid that fits all active sessions
       const config = { ...DEFAULT_GRID_CONFIG };
@@ -297,7 +328,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
 
       // First, add panels with active sessions
       for (const panel of activePanels) {
-        newPanels.push({ ...panel, id: generateId('panel') });
+        newPanels.push({ ...panel, id: generateId('panel'), sessionId: validateSessionId(panel.sessionId) });
       }
 
       // Fill remaining cells with empty panels
@@ -308,7 +339,8 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
       set({ gridConfig: config, panels: newPanels });
     } else {
       // Migrate from legacy grid layout (version 1)
-      const sessionsWithPanes = layout.panes.filter(p => p.sessionId);
+      // Only include panes with valid sessionIds
+      const sessionsWithPanes = layout.panes.filter(p => p.sessionId && validateSessionId(p.sessionId));
       const config = { ...DEFAULT_GRID_CONFIG };
       const totalCells = config.rows * config.cols;
 
@@ -318,7 +350,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
         newPanels.push({
           type: 'panel',
           id: generateId('panel'),
-          sessionId: pane.sessionId || null,
+          sessionId: validateSessionId(pane.sessionId || null),
         });
       }
 
@@ -350,8 +382,18 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     set((state) => {
       const newPrefs = new Map(state.worktreeAgentPrefs);
       newPrefs.set(worktreePath, agentId);
-      saveWorktreeAgentPrefs(newPrefs);
+      // Persist to backend
+      window.terminalIDE.worktree.setAgentPref(worktreePath, agentId);
       return { worktreeAgentPrefs: newPrefs };
     });
+  },
+
+  loadWorktreeAgentPrefsFromBackend: async () => {
+    try {
+      const prefs = await window.terminalIDE.worktree.getAgentPrefs();
+      set({ worktreeAgentPrefs: new Map(Object.entries(prefs)) });
+    } catch (error) {
+      console.error('Failed to load worktree agent preferences:', error);
+    }
   },
 }));

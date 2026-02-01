@@ -29,21 +29,3 @@ export interface SessionCreateResult {
   error?: string;
   hooksConfigured?: boolean;
 }
-
-// Legacy types - kept for backward compatibility, prefer types from layout.ts
-export interface LayoutPane {
-  id: string;
-  sessionId?: string;
-  row: number;
-  col: number;
-  rowSpan?: number;
-  colSpan?: number;
-}
-
-export interface LayoutState {
-  panes: LayoutPane[];
-  rows: number;
-  cols: number;
-  rowSizes?: number[];
-  colSizes?: number[];
-}

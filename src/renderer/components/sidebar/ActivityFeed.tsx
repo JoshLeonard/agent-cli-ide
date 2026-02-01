@@ -2,16 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useActivityFeedStore } from '../../stores/activityFeedStore';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { focusActiveTerminal } from '../../utils/terminal';
 import type { ActivityEvent, ActivityType, ActivitySeverity } from '../../../shared/types/activity';
 import './ActivityFeed.css';
-
-// Focus the active terminal's xterm textarea (with delay for native dialogs)
-const focusActiveTerminal = () => {
-  setTimeout(() => {
-    const activeTerminal = document.querySelector('.terminal-container.active .xterm-helper-textarea') as HTMLTextAreaElement;
-    activeTerminal?.focus();
-  }, 50);
-};
 
 interface ActivityFeedProps {
   onSelectSession?: (sessionId: string) => void;
