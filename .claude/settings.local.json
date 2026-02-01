@@ -37,7 +37,10 @@
       "Bash(git merge:*)",
       "WebSearch",
       "WebFetch(domain:www.electronjs.org)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(node --version:*)",
+      "Bash(npx electron-rebuild:*)",
+      "Bash(node install.js:*)"
     ]
   }
 }
