@@ -52,7 +52,9 @@
       "Bash(npx prebuild-install:*)",
       "Bash(./GetCommitHash.bat)",
       "Bash(git symbolic-ref:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(timeout:*)",
+      "Bash(node:*)"
     ]
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useMessagingStore } from '../stores/messagingStore';
+import { useGitStore } from '../stores/gitStore';
 
 interface KeyboardShortcutsCallbacks {
   onOpenSettings: () => void;
@@ -13,6 +14,7 @@ interface KeyboardShortcutsCallbacks {
 export function useKeyboardShortcuts({ onOpenSettings }: KeyboardShortcutsCallbacks) {
   const { panels, activePanel } = useLayoutStore();
   const { openQuickSend } = useMessagingStore();
+  const { togglePanel: toggleGitPanel } = useGitStore();
 
   // Paste from shared clipboard
   const handlePasteSharedClipboard = useCallback(async () => {
@@ -58,11 +60,16 @@ export function useKeyboardShortcuts({ onOpenSettings }: KeyboardShortcutsCallba
         e.preventDefault();
         onOpenSettings();
       }
+      // Ctrl+Shift+G: Toggle Git Panel
+      if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        toggleGitPanel();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openQuickSend, handlePasteSharedClipboard, onOpenSettings]);
+  }, [openQuickSend, handlePasteSharedClipboard, onOpenSettings, toggleGitPanel]);
 
   return { handlePasteSharedClipboard };
 }

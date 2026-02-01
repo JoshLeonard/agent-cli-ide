@@ -26,6 +26,37 @@ import type {
   DebugBreakpoint,
   StackFrame,
 } from './debug';
+import type {
+  GitStatusResult,
+  GitBranchListResult,
+  GitLogResult,
+  GitDiffResult,
+  GitStashListResult,
+  GitTagListResult,
+  GitRemoteListResult,
+  GitOperationResult,
+  GitCommitResult,
+  GitPushResult,
+  GitPullResult,
+  GitFetchResult,
+  GitMergeResult,
+  GitStageRequest,
+  GitUnstageRequest,
+  GitCommitRequest,
+  GitPushRequest,
+  GitPullRequest,
+  GitFetchRequest,
+  GitBranchCreateRequest,
+  GitBranchDeleteRequest,
+  GitCheckoutRequest,
+  GitMergeRequest,
+  GitStashRequest,
+  GitStashApplyRequest,
+  GitStashDropRequest,
+  GitLogRequest,
+  GitDiffRequest,
+  GitDiscardRequest,
+} from './git';
 
 export interface RecentProject {
   path: string;
@@ -312,6 +343,104 @@ export interface IpcChannels {
     request: { sessionId: string; expression: string; frameId?: number };
     response: { result: string; type?: string; variablesReference?: number; error?: string };
   };
+
+  // Git Operations
+  'git:status': {
+    request: { repoPath: string };
+    response: GitStatusResult;
+  };
+  'git:stage': {
+    request: GitStageRequest;
+    response: GitOperationResult;
+  };
+  'git:stageAll': {
+    request: { repoPath: string };
+    response: GitOperationResult;
+  };
+  'git:unstage': {
+    request: GitUnstageRequest;
+    response: GitOperationResult;
+  };
+  'git:unstageAll': {
+    request: { repoPath: string };
+    response: GitOperationResult;
+  };
+  'git:discard': {
+    request: GitDiscardRequest;
+    response: GitOperationResult;
+  };
+  'git:commit': {
+    request: GitCommitRequest;
+    response: GitCommitResult;
+  };
+  'git:push': {
+    request: GitPushRequest;
+    response: GitPushResult;
+  };
+  'git:pull': {
+    request: GitPullRequest;
+    response: GitPullResult;
+  };
+  'git:fetch': {
+    request: GitFetchRequest;
+    response: GitFetchResult;
+  };
+  'git:branches': {
+    request: { repoPath: string; includeRemote?: boolean };
+    response: GitBranchListResult;
+  };
+  'git:createBranch': {
+    request: GitBranchCreateRequest;
+    response: GitOperationResult;
+  };
+  'git:deleteBranch': {
+    request: GitBranchDeleteRequest;
+    response: GitOperationResult;
+  };
+  'git:checkout': {
+    request: GitCheckoutRequest;
+    response: GitOperationResult;
+  };
+  'git:merge': {
+    request: GitMergeRequest;
+    response: GitMergeResult;
+  };
+  'git:abortMerge': {
+    request: { repoPath: string };
+    response: GitOperationResult;
+  };
+  'git:log': {
+    request: GitLogRequest;
+    response: GitLogResult;
+  };
+  'git:diff': {
+    request: GitDiffRequest;
+    response: GitDiffResult;
+  };
+  'git:stashes': {
+    request: { repoPath: string };
+    response: GitStashListResult;
+  };
+  'git:stash': {
+    request: GitStashRequest;
+    response: GitOperationResult;
+  };
+  'git:stashApply': {
+    request: GitStashApplyRequest;
+    response: GitOperationResult;
+  };
+  'git:stashDrop': {
+    request: GitStashDropRequest;
+    response: GitOperationResult;
+  };
+  'git:tags': {
+    request: { repoPath: string };
+    response: GitTagListResult;
+  };
+  'git:remotes': {
+    request: { repoPath: string };
+    response: GitRemoteListResult;
+  };
 }
 
 // Event channels (send/on)
@@ -373,6 +502,11 @@ export interface IpcEvents {
     sessionId: string;
     breakpoint: DebugBreakpoint;
     callStack: StackFrame[];
+  };
+
+  // Git events
+  'git:statusChanged': {
+    repoPath: string;
   };
 }
 

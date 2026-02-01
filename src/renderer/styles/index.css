@@ -222,4 +222,48 @@ input:focus, select:focus {
   font-size: 11px;
 }
 
+/* Git button in status bar */
+.status-bar-git-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  margin: -2px 0;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+}
+
+.status-bar-git-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.status-bar-branch {
+  color: var(--text-primary);
+}
+
+.status-bar-sync {
+  display: flex;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.status-bar-ahead {
+  color: #89d185;
+  font-size: 11px;
+}
+
+.status-bar-behind {
+  color: #f48771;
+  font-size: 11px;
+}
+
+.status-bar-changes {
+  background-color: #3794ff;
+  color: #ffffff;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 6px;
+}
+
 /* Grid Selector styles moved to TitleBar.css */

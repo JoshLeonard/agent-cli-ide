@@ -18,6 +18,21 @@ import type {
   FileSaveResult,
   FileRevertResult,
 } from '../shared/types/fileReview';
+import type {
+  GitStatusResult,
+  GitBranchListResult,
+  GitLogResult,
+  GitDiffResult,
+  GitStashListResult,
+  GitTagListResult,
+  GitRemoteListResult,
+  GitOperationResult,
+  GitCommitResult,
+  GitPushResult,
+  GitPullResult,
+  GitFetchResult,
+  GitMergeResult,
+} from '../shared/types/git';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -303,6 +318,128 @@ const api = {
     onConsoleMessage: createEventSubscriber('debug:consoleMessage'),
     onException: createEventSubscriber('debug:exception'),
     onBreakpointHit: createEventSubscriber('debug:breakpointHit'),
+  },
+
+  // Git Operations
+  git: {
+    // Status
+    getStatus: (repoPath: string): Promise<GitStatusResult> =>
+      ipcRenderer.invoke('git:status', { repoPath }),
+
+    // Stage/Unstage
+    stage: (repoPath: string, paths: string[]): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:stage', { repoPath, paths }),
+
+    stageAll: (repoPath: string): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:stageAll', { repoPath }),
+
+    unstage: (repoPath: string, paths: string[]): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:unstage', { repoPath, paths }),
+
+    unstageAll: (repoPath: string): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:unstageAll', { repoPath }),
+
+    discard: (repoPath: string, paths: string[]): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:discard', { repoPath, paths }),
+
+    // Commit
+    commit: (repoPath: string, message: string, amend?: boolean): Promise<GitCommitResult> =>
+      ipcRenderer.invoke('git:commit', { repoPath, message, amend }),
+
+    // Push/Pull/Fetch
+    push: (
+      repoPath: string,
+      remote?: string,
+      branch?: string,
+      force?: boolean,
+      setUpstream?: boolean
+    ): Promise<GitPushResult> =>
+      ipcRenderer.invoke('git:push', { repoPath, remote, branch, force, setUpstream }),
+
+    pull: (
+      repoPath: string,
+      remote?: string,
+      branch?: string,
+      rebase?: boolean
+    ): Promise<GitPullResult> =>
+      ipcRenderer.invoke('git:pull', { repoPath, remote, branch, rebase }),
+
+    fetch: (repoPath: string, remote?: string, prune?: boolean): Promise<GitFetchResult> =>
+      ipcRenderer.invoke('git:fetch', { repoPath, remote, prune }),
+
+    // Branches
+    getBranches: (repoPath: string, includeRemote?: boolean): Promise<GitBranchListResult> =>
+      ipcRenderer.invoke('git:branches', { repoPath, includeRemote }),
+
+    createBranch: (
+      repoPath: string,
+      name: string,
+      startPoint?: string,
+      checkout?: boolean
+    ): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:createBranch', { repoPath, name, startPoint, checkout }),
+
+    deleteBranch: (repoPath: string, name: string, force?: boolean): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:deleteBranch', { repoPath, name, force }),
+
+    checkout: (repoPath: string, target: string, createBranch?: boolean): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:checkout', { repoPath, target, createBranch }),
+
+    // Merge
+    merge: (
+      repoPath: string,
+      branch: string,
+      noFastForward?: boolean,
+      squash?: boolean
+    ): Promise<GitMergeResult> =>
+      ipcRenderer.invoke('git:merge', { repoPath, branch, noFastForward, squash }),
+
+    abortMerge: (repoPath: string): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:abortMerge', { repoPath }),
+
+    // Log
+    getLog: (
+      repoPath: string,
+      maxCount?: number,
+      skip?: number,
+      branch?: string,
+      path?: string
+    ): Promise<GitLogResult> =>
+      ipcRenderer.invoke('git:log', { repoPath, maxCount, skip, branch, path }),
+
+    // Diff
+    getDiff: (
+      repoPath: string,
+      cached?: boolean,
+      path?: string,
+      ref1?: string,
+      ref2?: string
+    ): Promise<GitDiffResult> =>
+      ipcRenderer.invoke('git:diff', { repoPath, cached, path, ref1, ref2 }),
+
+    // Stashes
+    getStashes: (repoPath: string): Promise<GitStashListResult> =>
+      ipcRenderer.invoke('git:stashes', { repoPath }),
+
+    stash: (repoPath: string, message?: string, includeUntracked?: boolean): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:stash', { repoPath, message, includeUntracked }),
+
+    stashApply: (repoPath: string, index?: number, pop?: boolean): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:stashApply', { repoPath, index, pop }),
+
+    stashDrop: (repoPath: string, index: number): Promise<GitOperationResult> =>
+      ipcRenderer.invoke('git:stashDrop', { repoPath, index }),
+
+    // Tags
+    getTags: (repoPath: string): Promise<GitTagListResult> =>
+      ipcRenderer.invoke('git:tags', { repoPath }),
+
+    // Remotes
+    getRemotes: (repoPath: string): Promise<GitRemoteListResult> =>
+      ipcRenderer.invoke('git:remotes', { repoPath }),
+
+    // Events
+    onStatusChanged: createEventSubscriber('git:statusChanged'),
   },
 };
 

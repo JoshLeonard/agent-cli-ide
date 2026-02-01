@@ -9,3 +9,4 @@ export { registerSettingsHandlers, unregisterSettingsHandlers } from './settings
 export { registerEventForwarders, unregisterEventForwarders } from './events';
 export { registerFileReviewHandlers, unregisterFileReviewHandlers } from './fileReview';
 export { registerDebugHandlers, unregisterDebugHandlers } from './debug';
+export { registerGitHandlers, unregisterGitHandlers } from './git';
