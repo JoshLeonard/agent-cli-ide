@@ -128,6 +128,12 @@ const api = {
 
     isGitRepo: (path: string): Promise<boolean> =>
       ipcRenderer.invoke('worktree:isGitRepo', { path }),
+
+    onChanged: (callback: EventCallback<IpcEvents['worktree:changed']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['worktree:changed']) => callback(data);
+      ipcRenderer.on('worktree:changed', handler);
+      return () => ipcRenderer.removeListener('worktree:changed', handler);
+    },
   },
 
   // Agent status
@@ -192,6 +198,30 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['message:received']) => callback(data);
       ipcRenderer.on('message:received', handler);
       return () => ipcRenderer.removeListener('message:received', handler);
+    },
+  },
+
+  // Window controls
+  window: {
+    minimize: (): Promise<void> =>
+      ipcRenderer.invoke('window:minimize'),
+
+    maximize: (): Promise<void> =>
+      ipcRenderer.invoke('window:maximize'),
+
+    close: (): Promise<void> =>
+      ipcRenderer.invoke('window:close'),
+
+    isMaximized: (): Promise<boolean> =>
+      ipcRenderer.invoke('window:isMaximized'),
+
+    getPlatform: (): Promise<NodeJS.Platform> =>
+      ipcRenderer.invoke('window:getPlatform'),
+
+    onMaximizeChanged: (callback: EventCallback<IpcEvents['window:maximizeChanged']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['window:maximizeChanged']) => callback(data);
+      ipcRenderer.on('window:maximizeChanged', handler);
+      return () => ipcRenderer.removeListener('window:maximizeChanged', handler);
     },
   },
 };

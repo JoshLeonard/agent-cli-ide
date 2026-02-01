@@ -158,6 +158,27 @@ export interface IpcChannels {
     request: void;
     response: SharedClipboard | null;
   };
+  // Window controls
+  'window:minimize': {
+    request: void;
+    response: void;
+  };
+  'window:maximize': {
+    request: void;
+    response: void;
+  };
+  'window:close': {
+    request: void;
+    response: void;
+  };
+  'window:isMaximized': {
+    request: void;
+    response: boolean;
+  };
+  'window:getPlatform': {
+    request: void;
+    response: NodeJS.Platform;
+  };
 }
 
 // Event channels (send/on)
@@ -188,6 +209,12 @@ export interface IpcEvents {
   'message:received': {
     message: InterSessionMessage;
     targetSessionId: string;
+  };
+  'worktree:changed': {
+    projectPath: string;
+  };
+  'window:maximizeChanged': {
+    isMaximized: boolean;
   };
 }
 

@@ -15,6 +15,9 @@ async function createWindow(): Promise<void> {
     height: 900,
     minWidth: 800,
     minHeight: 600,
+    frame: false,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 12, y: 10 } } : {}),
     webPreferences: {
       preload: path.join(__dirname, '../../preload/preload/index.js'),
       contextIsolation: true,
@@ -66,11 +69,23 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('window-all-closed', () => {
-  // Terminate all sessions
+let isShuttingDown = false;
+
+function performShutdown(): void {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  // Unregister IPC handlers first to stop event forwarding
+  unregisterIpcHandlers();
+
+  // Then terminate sessions and processes
   sessionRegistry.terminateAll();
   processManager.killAll();
-  unregisterIpcHandlers();
+  projectService.dispose();
+}
+
+app.on('window-all-closed', () => {
+  performShutdown();
 
   if (process.platform !== 'darwin') {
     app.quit();
@@ -78,7 +93,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  sessionRegistry.terminateAll();
-  processManager.killAll();
-  projectService.dispose();
+  performShutdown();
 });
