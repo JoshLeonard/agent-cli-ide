@@ -44,7 +44,9 @@
       "WebSearch",
       "WebFetch(domain:www.electronjs.org)",
       "Bash(test:*)",
-      "Bash(cmd //c:*)"
+      "Bash(cmd //c:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)"
     ]
   }
 }
