@@ -220,6 +220,40 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   eventBus.on(Events.MESSAGE_RECEIVED, (data) => {
     mainWindow.webContents.send('message:received', data);
   });
+
+  // Window control handlers
+  ipcMain.handle('window:minimize', () => {
+    mainWindow.minimize();
+  });
+
+  ipcMain.handle('window:maximize', () => {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  });
+
+  ipcMain.handle('window:close', () => {
+    mainWindow.close();
+  });
+
+  ipcMain.handle('window:isMaximized', () => {
+    return mainWindow.isMaximized();
+  });
+
+  ipcMain.handle('window:getPlatform', () => {
+    return process.platform;
+  });
+
+  // Forward maximize state changes to renderer
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window:maximizeChanged', { isMaximized: true });
+  });
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window:maximizeChanged', { isMaximized: false });
+  });
 }
 
 export function unregisterIpcHandlers(): void {
@@ -257,4 +291,9 @@ export function unregisterIpcHandlers(): void {
   ipcMain.removeHandler('messaging:broadcast');
   ipcMain.removeHandler('messaging:setClipboard');
   ipcMain.removeHandler('messaging:getClipboard');
+  ipcMain.removeHandler('window:minimize');
+  ipcMain.removeHandler('window:maximize');
+  ipcMain.removeHandler('window:close');
+  ipcMain.removeHandler('window:isMaximized');
+  ipcMain.removeHandler('window:getPlatform');
 }

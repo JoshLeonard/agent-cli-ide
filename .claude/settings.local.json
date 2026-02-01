@@ -40,7 +40,12 @@
       "Bash(test:*)",
       "Bash(node --version:*)",
       "Bash(npx electron-rebuild:*)",
-      "Bash(node install.js:*)"
+      "Bash(node install.js:*)",
+      "Bash(cmd //c \"cd C:\\\\Users\\\\joshu\\\\dev\\\\terminal-ide && npm start\")",
+      "Bash(cmd //c \"dir C:\\\\Users\\\\joshu\\\\dev\\\\\")",
+      "Bash(cmd //c \"cd C:\\\\Users\\\\joshu\\\\dev\\\\agent-cli-ide && npm start\")",
+      "Bash(cmd //c \"cd C:\\\\Users\\\\joshu\\\\AppData\\\\Local\\\\Temp\\\\terminal-ide-worktrees\\\\feature_design-1769911842233 && rmdir node_modules 2>nul & mklink /J node_modules C:\\\\Users\\\\joshu\\\\dev\\\\agent-cli-ide\\\\node_modules\")",
+      "Bash(cmd //c:*)"
     ]
   }
 }
