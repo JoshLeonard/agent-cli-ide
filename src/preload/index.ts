@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type {
   SessionConfig,
   SessionInfo,
@@ -15,6 +15,18 @@ import type { SharedClipboard, MessageSendOptions } from '../shared/types/messag
 import type { Settings, PartialSettings } from '../shared/types/settings';
 
 type EventCallback<T> = (data: T) => void;
+
+/**
+ * Creates a type-safe event subscriber for an IPC event.
+ * Returns a function that takes a callback and returns an unsubscribe function.
+ */
+function createEventSubscriber<K extends keyof IpcEvents>(eventName: K) {
+  return (callback: EventCallback<IpcEvents[K]>) => {
+    const handler = (_event: IpcRendererEvent, data: IpcEvents[K]) => callback(data);
+    ipcRenderer.on(eventName, handler);
+    return () => ipcRenderer.removeListener(eventName, handler);
+  };
+}
 
 const api = {
   // Session management
@@ -37,23 +49,9 @@ const api = {
     get: (sessionId: string): Promise<SessionInfo | null> =>
       ipcRenderer.invoke('session:get', { sessionId }),
 
-    onOutput: (callback: EventCallback<IpcEvents['session:output']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['session:output']) => callback(data);
-      ipcRenderer.on('session:output', handler);
-      return () => ipcRenderer.removeListener('session:output', handler);
-    },
-
-    onTerminated: (callback: EventCallback<IpcEvents['session:terminated']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['session:terminated']) => callback(data);
-      ipcRenderer.on('session:terminated', handler);
-      return () => ipcRenderer.removeListener('session:terminated', handler);
-    },
-
-    onUpdated: (callback: EventCallback<IpcEvents['session:updated']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['session:updated']) => callback(data);
-      ipcRenderer.on('session:updated', handler);
-      return () => ipcRenderer.removeListener('session:updated', handler);
-    },
+    onOutput: createEventSubscriber('session:output'),
+    onTerminated: createEventSubscriber('session:terminated'),
+    onUpdated: createEventSubscriber('session:updated'),
   },
 
   // Layout persistence
@@ -109,11 +107,7 @@ const api = {
     getRecent: (): Promise<RecentProject[]> =>
       ipcRenderer.invoke('project:getRecent'),
 
-    onUpdated: (callback: EventCallback<IpcEvents['project:updated']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['project:updated']) => callback(data);
-      ipcRenderer.on('project:updated', handler);
-      return () => ipcRenderer.removeListener('project:updated', handler);
-    },
+    onUpdated: createEventSubscriber('project:updated'),
   },
 
   // Worktree management
@@ -136,11 +130,7 @@ const api = {
     setAgentPref: (worktreePath: string, agentId: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('worktree:setAgentPref', { worktreePath, agentId }),
 
-    onChanged: (callback: EventCallback<IpcEvents['worktree:changed']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['worktree:changed']) => callback(data);
-      ipcRenderer.on('worktree:changed', handler);
-      return () => ipcRenderer.removeListener('worktree:changed', handler);
-    },
+    onChanged: createEventSubscriber('worktree:changed'),
   },
 
   // Agent status
@@ -151,11 +141,7 @@ const api = {
     getAll: (): Promise<AgentStatus[]> =>
       ipcRenderer.invoke('agentStatus:getAll'),
 
-    onUpdated: (callback: EventCallback<IpcEvents['agentStatus:updated']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['agentStatus:updated']) => callback(data);
-      ipcRenderer.on('agentStatus:updated', handler);
-      return () => ipcRenderer.removeListener('agentStatus:updated', handler);
-    },
+    onUpdated: createEventSubscriber('agentStatus:updated'),
   },
 
   // Activity feed
@@ -166,11 +152,7 @@ const api = {
     clearEvents: (sessionId?: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('activity:clearEvents', { sessionId }),
 
-    onEvent: (callback: EventCallback<IpcEvents['activity:event']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['activity:event']) => callback(data);
-      ipcRenderer.on('activity:event', handler);
-      return () => ipcRenderer.removeListener('activity:event', handler);
-    },
+    onEvent: createEventSubscriber('activity:event'),
   },
 
   // Messaging
@@ -195,17 +177,8 @@ const api = {
     getClipboard: (): Promise<SharedClipboard | null> =>
       ipcRenderer.invoke('messaging:getClipboard'),
 
-    onSent: (callback: EventCallback<IpcEvents['message:sent']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['message:sent']) => callback(data);
-      ipcRenderer.on('message:sent', handler);
-      return () => ipcRenderer.removeListener('message:sent', handler);
-    },
-
-    onReceived: (callback: EventCallback<IpcEvents['message:received']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['message:received']) => callback(data);
-      ipcRenderer.on('message:received', handler);
-      return () => ipcRenderer.removeListener('message:received', handler);
-    },
+    onSent: createEventSubscriber('message:sent'),
+    onReceived: createEventSubscriber('message:received'),
   },
 
   // Window controls
@@ -225,11 +198,7 @@ const api = {
     getPlatform: (): Promise<NodeJS.Platform> =>
       ipcRenderer.invoke('window:getPlatform'),
 
-    onMaximizeChanged: (callback: EventCallback<IpcEvents['window:maximizeChanged']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['window:maximizeChanged']) => callback(data);
-      ipcRenderer.on('window:maximizeChanged', handler);
-      return () => ipcRenderer.removeListener('window:maximizeChanged', handler);
-    },
+    onMaximizeChanged: createEventSubscriber('window:maximizeChanged'),
   },
 
   // Settings
@@ -243,11 +212,7 @@ const api = {
     reset: (): Promise<Settings> =>
       ipcRenderer.invoke('settings:reset'),
 
-    onUpdated: (callback: EventCallback<IpcEvents['settings:updated']>) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['settings:updated']) => callback(data);
-      ipcRenderer.on('settings:updated', handler);
-      return () => ipcRenderer.removeListener('settings:updated', handler);
-    },
+    onUpdated: createEventSubscriber('settings:updated'),
   },
 };
 

@@ -4,19 +4,7 @@ import { app } from 'electron';
 import type { SessionInfo } from '../../shared/types/session';
 import type { PersistedLayoutState, GridLayoutState, GridConfig, TerminalPanel } from '../../shared/types/layout';
 import { isGridLayoutState } from '../../shared/types/layout';
-import type { RecentProject } from '../../shared/types/ipc';
-
-export interface PersistedState {
-  sessions: SessionInfo[];
-  layout: PersistedLayoutState;
-  lastSaved: number;
-}
-
-export interface ExtendedPersistedState extends PersistedState {
-  projectPath?: string;
-  recentProjects?: RecentProject[];
-  worktreeAgentPrefs?: Record<string, string>; // worktreePath → agentId
-}
+import type { PersistedState, RecentProject } from '../../shared/types/ipc';
 
 const MAX_RECENT_PROJECTS = 10;
 
@@ -36,7 +24,7 @@ export class PersistenceService {
 
   async save(sessions: SessionInfo[], layout: PersistedLayoutState, projectPath?: string): Promise<void> {
     const existing = await this.load();
-    const state: ExtendedPersistedState = {
+    const state: PersistedState = {
       sessions: sessions.filter((s) => s.status === 'running' || s.status === 'initializing'),
       layout,
       lastSaved: Date.now(),
@@ -54,10 +42,10 @@ export class PersistenceService {
     }
   }
 
-  async load(): Promise<ExtendedPersistedState | null> {
+  async load(): Promise<PersistedState | null> {
     try {
       const content = await fs.readFile(this.filePath, 'utf-8');
-      const state = JSON.parse(content) as ExtendedPersistedState;
+      const state = JSON.parse(content) as PersistedState;
 
       // Ensure layout has proper structure
       if (state.layout) {
@@ -124,7 +112,7 @@ export class PersistenceService {
       panels: this.createDefaultPanels({ rows: 2, cols: 5 }),
     };
 
-    const state: ExtendedPersistedState = {
+    const state: PersistedState = {
       sessions: existing?.sessions || [],
       layout: existing?.layout || defaultLayout,
       lastSaved: Date.now(),
@@ -162,7 +150,7 @@ export class PersistenceService {
     const worktreeAgentPrefs = existing?.worktreeAgentPrefs || {};
     worktreeAgentPrefs[worktreePath] = agentId;
 
-    const state: ExtendedPersistedState = {
+    const state: PersistedState = {
       sessions: existing?.sessions || [],
       layout: existing?.layout || defaultLayout,
       lastSaved: Date.now(),

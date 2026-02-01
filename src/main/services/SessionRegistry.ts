@@ -1,13 +1,11 @@
 import { Session } from '../session/Session';
 import { eventBus, Events } from './EventBus';
 import { gitWorktreeManager } from './GitWorktreeManager';
-import { claudeHooksManager } from './ClaudeHooksManager';
-import { hookStateWatcherService } from './HookStateWatcherService';
+import { sessionHookManager } from './SessionHookManager';
 import type { SessionConfig, SessionInfo, SessionCreateResult } from '../../shared/types/session';
 
 export class SessionRegistry {
   private sessions: Map<string, Session> = new Map();
-  private sessionHooksConfigured: Map<string, boolean> = new Map();
 
   async createSession(config: SessionConfig): Promise<SessionCreateResult> {
     try {
@@ -36,15 +34,12 @@ export class SessionRegistry {
       this.sessions.set(session.id, session);
 
       // Configure hooks for Claude Code sessions
-      let hooksConfigured = false;
-      if (config.agentId === 'claude-code') {
-        const sessionCwd = worktreePath || config.cwd;
-        hooksConfigured = await claudeHooksManager.ensureHooksConfigured(sessionCwd, session.id);
-        if (hooksConfigured) {
-          hookStateWatcherService.watchSession(session.id);
-          this.sessionHooksConfigured.set(session.id, true);
-        }
-      }
+      const sessionCwd = worktreePath || config.cwd;
+      const hooksConfigured = await sessionHookManager.configureHooks(
+        config.agentId,
+        session.id,
+        sessionCwd
+      );
 
       await session.start();
 
@@ -77,13 +72,9 @@ export class SessionRegistry {
       // Wait for actual process exit
       await session.terminateAsync();
 
-      // Clean up hooks for Claude Code sessions
-      if (this.sessionHooksConfigured.get(sessionId)) {
-        hookStateWatcherService.unwatchSession(sessionId);
-        const sessionCwd = session.worktreePath || session.cwd;
-        await claudeHooksManager.cleanupHooks(sessionCwd, sessionId);
-        this.sessionHooksConfigured.delete(sessionId);
-      }
+      // Clean up hooks
+      const sessionCwd = session.worktreePath || session.cwd;
+      await sessionHookManager.cleanupHooks(sessionId, sessionCwd);
 
       // Clean up worktree if isolated session
       if (session.type === 'isolated' && session.worktreePath) {
@@ -130,19 +121,16 @@ export class SessionRegistry {
 
   terminateAll(): void {
     for (const [sessionId, session] of this.sessions) {
-      // Clean up hooks
-      if (this.sessionHooksConfigured.get(sessionId)) {
-        hookStateWatcherService.unwatchSession(sessionId);
-        // Note: async cleanup skipped during terminateAll for speed
-      }
+      // Clean up hooks synchronously for speed
+      sessionHookManager.cleanupHooksSync(sessionId);
       session.terminate();
     }
     this.sessions.clear();
-    this.sessionHooksConfigured.clear();
+    sessionHookManager.clearAll();
   }
 
   isHooksConfigured(sessionId: string): boolean {
-    return this.sessionHooksConfigured.get(sessionId) ?? false;
+    return sessionHookManager.isHooksConfigured(sessionId);
   }
 
   /**
@@ -169,14 +157,12 @@ export class SessionRegistry {
 
     if (autoStart) {
       // Configure hooks for Claude Code sessions
-      if (info.agentId === 'claude-code') {
-        const sessionCwd = info.worktreePath || info.cwd;
-        hooksConfigured = await claudeHooksManager.ensureHooksConfigured(sessionCwd, session.id);
-        if (hooksConfigured) {
-          hookStateWatcherService.watchSession(session.id);
-          this.sessionHooksConfigured.set(session.id, true);
-        }
-      }
+      const sessionCwd = info.worktreePath || info.cwd;
+      hooksConfigured = await sessionHookManager.configureHooks(
+        info.agentId,
+        session.id,
+        sessionCwd
+      );
 
       await session.start();
 
