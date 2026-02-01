@@ -1,0 +1,58 @@
+/* Message Feedback Overlay */
+.message-feedback {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  animation: feedbackFadeIn 0.2s ease-out, feedbackFadeOut 0.3s ease-in 1.7s forwards;
+}
+
+.feedback-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+.message-feedback.received .feedback-content {
+  background: rgba(78, 201, 176, 0.9);
+  color: white;
+}
+
+.message-feedback.sent .feedback-content {
+  background: rgba(0, 120, 212, 0.9);
+  color: white;
+}
+
+.feedback-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.feedback-text {
+  white-space: nowrap;
+}
+
+@keyframes feedbackFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes feedbackFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

@@ -2,8 +2,11 @@ import React, { useState, useCallback } from 'react';
 import type { TerminalPanel as TerminalPanelType } from '../../../shared/types/layout';
 import { PanelContextMenu } from './PanelContextMenu';
 import { TerminalContainer } from '../terminal/TerminalContainer';
+import { MessageFeedback } from '../terminal/MessageFeedback';
 import { useLayoutStore } from '../../stores/layoutStore';
+import { useMessagingStore } from '../../stores/messagingStore';
 import './TerminalPanel.css';
+import '../terminal/MessageFeedback.css';
 
 interface WorktreeDropData {
   path: string;
@@ -37,6 +40,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const [isDragOver, setDragOver] = useState(false);
 
   const { setActivePanel, clearPanelSession } = useLayoutStore();
+  const { openQuickSend } = useMessagingStore();
 
   const handlePanelClick = useCallback(() => {
     setActivePanel(panel.id);
@@ -61,6 +65,33 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const handleCloseSession = useCallback(() => {
     clearPanelSession(panel.id);
   }, [panel.id, clearPanelSession]);
+
+  const handleCopyToClipboard = useCallback(async () => {
+    if (!panel.sessionId) return;
+    // Get selected text from terminal if available, otherwise just note it
+    // For now, we'll prompt user to select text first
+    const selection = window.getSelection()?.toString();
+    if (selection) {
+      await window.terminalIDE.messaging.setClipboard(selection, panel.sessionId);
+    } else {
+      alert('Select text in the terminal first, then use Copy to Shared Clipboard');
+    }
+  }, [panel.sessionId]);
+
+  const handleSendToSession = useCallback(() => {
+    if (!panel.sessionId) return;
+    openQuickSend();
+  }, [panel.sessionId, openQuickSend]);
+
+  const handlePasteSharedClipboard = useCallback(async () => {
+    if (!panel.sessionId) return;
+    const clipboard = await window.terminalIDE.messaging.getClipboard();
+    if (clipboard) {
+      await window.terminalIDE.session.write(panel.sessionId, clipboard.content);
+    } else {
+      alert('Shared clipboard is empty');
+    }
+  }, [panel.sessionId]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     // Only accept drops on empty panels
@@ -116,10 +147,19 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
         )}
       </div>
 
+      {/* Message feedback overlay */}
+      {panel.sessionId && (
+        <MessageFeedback sessionId={panel.sessionId} />
+      )}
+
       {contextMenu.isOpen && panel.sessionId && (
         <PanelContextMenu
           position={{ x: contextMenu.x, y: contextMenu.y }}
+          sessionId={panel.sessionId}
           onCloseSession={handleCloseSession}
+          onCopyToClipboard={handleCopyToClipboard}
+          onSendToSession={handleSendToSession}
+          onPasteSharedClipboard={handlePasteSharedClipboard}
           onDismiss={handleDismissContextMenu}
         />
       )}

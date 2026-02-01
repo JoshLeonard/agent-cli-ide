@@ -108,6 +108,30 @@ export class Session {
     }
   }
 
+  terminateAsync(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this._pid || this._status === 'terminated') {
+        resolve();
+        return;
+      }
+
+      // Set up timeout fallback (5 seconds max wait)
+      const timeout = setTimeout(resolve, 5000);
+
+      // Listen for the exit event
+      if (this.pty) {
+        this.pty.onExit(() => {
+          clearTimeout(timeout);
+          resolve();
+        });
+      }
+
+      // Send kill signal
+      processManager.kill(this._pid);
+      this._status = 'terminated';
+    });
+  }
+
   toInfo(): SessionInfo {
     return {
       id: this.id,

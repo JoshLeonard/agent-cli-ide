@@ -1,0 +1,127 @@
+/* Status Badge */
+.status-badge {
+  padding: 4px 0;
+  font-size: 11px;
+}
+
+.status-badge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.status-icon {
+  font-size: 12px;
+}
+
+.status-label {
+  text-transform: capitalize;
+}
+
+.status-time {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.status-task {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.status-error {
+  margin-top: 4px;
+  color: var(--error-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+  font-size: 10px;
+}
+
+.status-files {
+  margin-top: 4px;
+  color: var(--success-color);
+  font-size: 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* State colors */
+.status-indicator.working {
+  color: var(--accent-color);
+}
+
+.status-indicator.waiting {
+  color: var(--warning-color, #f0ad4e);
+}
+
+.status-indicator.error {
+  color: var(--error-color);
+}
+
+.status-indicator.idle {
+  color: var(--text-secondary);
+}
+
+/* Working state pulsing animation */
+.status-badge.working .status-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Compact badge */
+.status-badge-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+}
+
+.status-badge-compact.working {
+  background: rgba(0, 120, 212, 0.2);
+  color: var(--accent-color);
+  animation: pulse-bg 1.5s ease-in-out infinite;
+}
+
+.status-badge-compact.waiting {
+  background: rgba(240, 173, 78, 0.2);
+  color: var(--warning-color, #f0ad4e);
+}
+
+.status-badge-compact.error {
+  background: rgba(244, 67, 54, 0.2);
+  color: var(--error-color);
+}
+
+.status-badge-compact.idle {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+@keyframes pulse-bg {
+  0%, 100% {
+    background: rgba(0, 120, 212, 0.2);
+  }
+  50% {
+    background: rgba(0, 120, 212, 0.4);
+  }
+}

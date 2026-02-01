@@ -29,6 +29,7 @@ export interface SessionCreateResult {
   error?: string;
 }
 
+// Legacy types - kept for backward compatibility, prefer types from layout.ts
 export interface LayoutPane {
   id: string;
   sessionId?: string;
@@ -42,12 +43,6 @@ export interface LayoutState {
   panes: LayoutPane[];
   rows: number;
   cols: number;
-  rowSizes?: number[];  // e.g., [0.3, 0.7] - fractions summing to 1
-  colSizes?: number[];  // e.g., [0.5, 0.5]
-}
-
-export interface PersistedState {
-  sessions: SessionInfo[];
-  layout: LayoutState;
-  lastSaved: number;
+  rowSizes?: number[];
+  colSizes?: number[];
 }

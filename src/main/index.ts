@@ -45,6 +45,12 @@ app.whenReady().then(async () => {
   await agentService.initialize();
   console.log(`Discovered ${agentService.getAvailableAgents().length} available agents`);
 
+  // Retry any pending worktree deletions from previous sessions
+  const retried = await gitWorktreeManager.retryPendingDeletions();
+  if (retried.length > 0) {
+    console.log(`Cleaned up ${retried.length} pending worktree deletions`);
+  }
+
   // Clean up orphaned worktrees from previous sessions
   const cleaned = await gitWorktreeManager.cleanupOrphaned();
   if (cleaned.length > 0) {

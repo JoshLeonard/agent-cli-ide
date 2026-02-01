@@ -4,9 +4,12 @@ import { SessionSidebar } from './components/sidebar/SessionSidebar';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { StatusBar } from './components/StatusBar';
+import { QuickSendDialog } from './components/messaging/QuickSendDialog';
 import { useLayoutStore } from './stores/layoutStore';
 import { useProjectStore } from './stores/projectStore';
+import { useMessagingStore } from './stores/messagingStore';
 import type { SessionType } from '../shared/types/session';
+import './components/messaging/QuickSendDialog.css';
 
 // Grid preset options
 const GRID_PRESETS = [
@@ -26,6 +29,8 @@ const App: React.FC = () => {
 
   const currentProject = useProjectStore((state) => state.currentProject);
   const setProject = useProjectStore((state) => state.setProject);
+
+  const { openQuickSend, setLastReceivedMessage, addRecentMessage } = useMessagingStore();
 
   const {
     gridConfig,
@@ -151,6 +156,68 @@ const App: React.FC = () => {
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [isGridDropdownOpen]);
+
+  // Keyboard shortcuts for messaging
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+S: Open Quick Send Dialog
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        openQuickSend();
+      }
+      // Ctrl+Shift+B: Broadcast to all sessions
+      if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        openQuickSend();
+        // The dialog will handle broadcast mode
+      }
+      // Ctrl+Shift+V: Paste from shared clipboard
+      if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+        e.preventDefault();
+        handlePasteSharedClipboard();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [openQuickSend, activePanel, panels]);
+
+  // Subscribe to messaging events
+  useEffect(() => {
+    const unsubscribeSent = window.terminalIDE.messaging.onSent(({ message }) => {
+      addRecentMessage(message);
+    });
+
+    const unsubscribeReceived = window.terminalIDE.messaging.onReceived(({ message, targetSessionId }) => {
+      setLastReceivedMessage(targetSessionId);
+    });
+
+    return () => {
+      unsubscribeSent();
+      unsubscribeReceived();
+    };
+  }, [addRecentMessage, setLastReceivedMessage]);
+
+  // Paste from shared clipboard
+  const handlePasteSharedClipboard = async () => {
+    const clipboard = await window.terminalIDE.messaging.getClipboard();
+    if (!clipboard) {
+      console.log('Shared clipboard is empty');
+      return;
+    }
+
+    // Get the active session
+    const activePanel_data = panels.find(p => p.id === activePanel);
+    const activeSessionId = activePanel_data?.sessionId;
+
+    if (!activeSessionId) {
+      console.log('No active session to paste into');
+      return;
+    }
+
+    // Write clipboard content to active session
+    await window.terminalIDE.session.write(activeSessionId, clipboard.content);
+  };
 
   const handleCreateSession = async (config: { type: SessionType; cwd: string; branch?: string; agentId?: string }) => {
     const sessionConfig = {
@@ -332,6 +399,8 @@ const App: React.FC = () => {
         onClose={() => setDialogOpen(false)}
         onSubmit={handleCreateSession}
       />
+
+      <QuickSendDialog />
     </div>
   );
 };

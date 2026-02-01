@@ -55,7 +55,8 @@ export class SessionRegistry {
     }
 
     try {
-      session.terminate();
+      // Wait for actual process exit
+      await session.terminateAsync();
 
       // Clean up worktree if isolated session
       if (session.type === 'isolated' && session.worktreePath) {

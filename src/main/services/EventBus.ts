@@ -66,4 +66,8 @@ export const Events = {
   SESSION_TERMINATED: 'session:terminated',
   SESSION_UPDATED: 'session:updated',
   SESSION_CREATED: 'session:created',
+  AGENT_STATUS_UPDATED: 'agentStatus:updated',
+  ACTIVITY_EVENT: 'activity:event',
+  MESSAGE_SENT: 'message:sent',
+  MESSAGE_RECEIVED: 'message:received',
 } as const;

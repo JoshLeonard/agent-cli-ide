@@ -8,6 +8,7 @@ import type {
   LayoutNode,
 } from '../../shared/types/layout';
 import { isGridLayoutState, isTreeLayoutState, isTerminalPanel } from '../../shared/types/layout';
+import type { AgentStatus } from '../../shared/types/agentStatus';
 
 // Default grid configuration
 const DEFAULT_GRID_CONFIG: GridConfig = {
@@ -41,6 +42,7 @@ interface LayoutStore {
   panels: TerminalPanel[];
   activePanel: string | null;
   sessions: Map<string, SessionInfo>;
+  agentStatuses: Map<string, AgentStatus>;
   worktreeAgentPrefs: Map<string, string>; // worktreePath → agentId
 
   // Grid operations
@@ -61,6 +63,11 @@ interface LayoutStore {
   removeSession: (sessionId: string) => void;
   clearSessions: () => void;
   setSessions: (sessions: SessionInfo[]) => void;
+
+  // Agent status management
+  updateAgentStatus: (status: AgentStatus) => void;
+  removeAgentStatus: (sessionId: string) => void;
+  getAgentStatus: (sessionId: string) => AgentStatus | undefined;
 
   // Utilities
   findPanelBySessionId: (sessionId: string) => string | null;
@@ -111,6 +118,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   panels: createGridPanels(DEFAULT_GRID_CONFIG),
   activePanel: null,
   sessions: new Map(),
+  agentStatuses: new Map(),
   worktreeAgentPrefs: loadWorktreeAgentPrefs(),
 
   setGridDimensions: (rows: number, cols: number) => {
@@ -199,12 +207,16 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
       const newSessions = new Map(state.sessions);
       newSessions.delete(sessionId);
 
+      // Also remove agent status
+      const newStatuses = new Map(state.agentStatuses);
+      newStatuses.delete(sessionId);
+
       // Find panel with this session and clear its sessionId
       const newPanels = state.panels.map(p =>
         p.sessionId === sessionId ? { ...p, sessionId: null } : p
       );
 
-      return { sessions: newSessions, panels: newPanels };
+      return { sessions: newSessions, agentStatuses: newStatuses, panels: newPanels };
     });
   },
 
@@ -220,6 +232,26 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     const sessionMap = new Map<string, SessionInfo>();
     sessions.forEach((s) => sessionMap.set(s.id, s));
     set({ sessions: sessionMap });
+  },
+
+  updateAgentStatus: (status: AgentStatus) => {
+    set((state) => {
+      const newStatuses = new Map(state.agentStatuses);
+      newStatuses.set(status.sessionId, status);
+      return { agentStatuses: newStatuses };
+    });
+  },
+
+  removeAgentStatus: (sessionId: string) => {
+    set((state) => {
+      const newStatuses = new Map(state.agentStatuses);
+      newStatuses.delete(sessionId);
+      return { agentStatuses: newStatuses };
+    });
+  },
+
+  getAgentStatus: (sessionId: string) => {
+    return get().agentStatuses.get(sessionId);
   },
 
   findPanelBySessionId: (sessionId: string) => {

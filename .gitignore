@@ -7,3 +7,4 @@ dist/
 # TypeScript build outputs
 *.d.ts
 *.d.ts.map
+*.js.map

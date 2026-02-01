@@ -8,13 +8,21 @@ interface ContextMenuPosition {
 
 interface PanelContextMenuProps {
   position: ContextMenuPosition;
+  sessionId?: string;
   onCloseSession: () => void;
+  onCopyToClipboard?: () => void;
+  onSendToSession?: () => void;
+  onPasteSharedClipboard?: () => void;
   onDismiss: () => void;
 }
 
 export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
   position,
+  sessionId,
   onCloseSession,
+  onCopyToClipboard,
+  onSendToSession,
+  onPasteSharedClipboard,
   onDismiss,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -70,6 +78,41 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
       ref={menuRef}
       style={{ left: adjustedPosition.x, top: adjustedPosition.y }}
     >
+      {/* Messaging options */}
+      {sessionId && onCopyToClipboard && (
+        <button
+          className="context-menu-item"
+          onClick={() => handleItemClick(onCopyToClipboard)}
+        >
+          <span className="context-menu-icon">\u2398</span>
+          Copy to Shared Clipboard
+        </button>
+      )}
+      {sessionId && onSendToSession && (
+        <button
+          className="context-menu-item"
+          onClick={() => handleItemClick(onSendToSession)}
+        >
+          <span className="context-menu-icon">\u2192</span>
+          Send to Session...
+        </button>
+      )}
+      {sessionId && onPasteSharedClipboard && (
+        <button
+          className="context-menu-item"
+          onClick={() => handleItemClick(onPasteSharedClipboard)}
+        >
+          <span className="context-menu-icon">\u2193</span>
+          Paste Shared Clipboard
+        </button>
+      )}
+
+      {/* Separator if we have messaging options */}
+      {sessionId && (onCopyToClipboard || onSendToSession || onPasteSharedClipboard) && (
+        <div className="context-menu-separator" />
+      )}
+
+      {/* Session management */}
       <button
         className="context-menu-item danger"
         onClick={() => handleItemClick(onCloseSession)}

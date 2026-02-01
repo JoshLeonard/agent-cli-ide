@@ -20,6 +20,7 @@ export interface WorktreeInfo {
 
 export class GitWorktreeManager {
   private worktreeBaseDir: string;
+  private pendingDeletions: Set<string> = new Set();
 
   constructor() {
     this.worktreeBaseDir = path.join(os.tmpdir(), 'terminal-ide-worktrees');
@@ -87,16 +88,22 @@ export class GitWorktreeManager {
         });
       }
 
+      // Success - remove from pending if it was there
+      this.pendingDeletions.delete(worktreePath);
       return { success: true };
     } catch (error) {
-      // If worktree removal fails, try to clean up manually
+      // Add to pending deletions for retry
+      this.pendingDeletions.add(worktreePath);
+
+      // Try manual deletion as fallback
       try {
         await fs.rm(worktreePath, { recursive: true, force: true });
+        this.pendingDeletions.delete(worktreePath);
         return { success: true };
       } catch {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to remove worktree',
+          error: `Folder locked, scheduled for cleanup: ${worktreePath}`,
         };
       }
     }
@@ -173,6 +180,24 @@ export class GitWorktreeManager {
     }
 
     return cleaned;
+  }
+
+  async retryPendingDeletions(): Promise<string[]> {
+    const deleted: string[] = [];
+    for (const worktreePath of this.pendingDeletions) {
+      try {
+        await fs.rm(worktreePath, { recursive: true, force: true });
+        this.pendingDeletions.delete(worktreePath);
+        deleted.push(worktreePath);
+      } catch {
+        // Still locked, will retry later
+      }
+    }
+    return deleted;
+  }
+
+  getPendingDeletions(): string[] {
+    return Array.from(this.pendingDeletions);
   }
 
   private async branchExists(repoPath: string, branch: string): Promise<boolean> {

@@ -1,9 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { useProjectStore } from '../../stores/projectStore';
+import { useActivityFeedStore } from '../../stores/activityFeedStore';
+import { SessionStatusBadge } from './SessionStatusBadge';
+import { ActivityFeed } from './ActivityFeed';
 import type { SessionInfo } from '../../../shared/types/session';
 import type { WorktreeInfo } from '../../../shared/types/ipc';
+import type { AgentStatus } from '../../../shared/types/agentStatus';
 import './SessionSidebar.css';
+import './SessionStatusBadge.css';
+import './ActivityFeed.css';
+
+// Focus the active terminal's xterm textarea (with delay for native dialogs)
+const focusActiveTerminal = () => {
+  setTimeout(() => {
+    const activeTerminal = document.querySelector('.terminal-container.active .xterm-helper-textarea') as HTMLTextAreaElement;
+    activeTerminal?.focus();
+  }, 50);
+};
 
 interface SessionSidebarProps {
   onSelectSession: (sessionId: string) => void;
@@ -14,12 +28,15 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   onSelectSession,
   onTerminateSession,
 }) => {
-  const { sessions, activePanel, getAllPanels } = useLayoutStore();
+  const { sessions, activePanel, getAllPanels, agentStatuses, updateAgentStatus } = useLayoutStore();
   const { currentProject } = useProjectStore();
+
+  const { events } = useActivityFeedStore();
 
   // Accordion state
   const [expandedSections, setExpandedSections] = useState({
     sessions: true,
+    activity: false,
     worktrees: false,
   });
 
@@ -37,7 +54,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   // Convert sessions map to array
   const sessionList = Array.from(sessions.values());
 
-  const toggleSection = (section: 'sessions' | 'worktrees') => {
+  const toggleSection = (section: 'sessions' | 'activity' | 'worktrees') => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section],
@@ -80,6 +97,20 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     }
   }, [expandedSections.worktrees, loadWorktrees]);
 
+  // Subscribe to agent status updates
+  useEffect(() => {
+    const unsubscribe = window.terminalIDE.agentStatus.onUpdated(({ status }) => {
+      updateAgentStatus(status);
+    });
+
+    // Load initial statuses
+    window.terminalIDE.agentStatus.getAll().then((statuses) => {
+      statuses.forEach((status) => updateAgentStatus(status));
+    });
+
+    return unsubscribe;
+  }, [updateAgentStatus]);
+
   // Check if a worktree has an active session
   const getWorktreeSession = (worktreePath: string): SessionInfo | undefined => {
     return sessionList.find(
@@ -97,20 +128,21 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     }
 
     if (!confirm(confirmMessage)) {
+      focusActiveTerminal();
       return;
     }
 
     try {
-      // Terminate session first if exists
+      // Terminate session first if exists (backend now waits for process exit)
       if (activeSession) {
         await onTerminateSession(activeSession.id);
-        // Give session time to terminate
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // No delay needed - terminateSession waits for process exit
       }
 
       const result = await window.terminalIDE.worktree.remove(worktree.path);
       if (!result.success) {
-        alert(`Failed to remove worktree: ${result.error}`);
+        // Show warning but don't block - cleanup will happen later
+        console.warn(`Worktree deletion pending: ${result.error}`);
       }
 
       // Refresh worktrees list
@@ -118,11 +150,14 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     } catch (error) {
       alert(`Error removing worktree: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+
+    focusActiveTerminal();
   };
 
   // Handle clean orphaned worktrees
   const handleCleanOrphaned = async () => {
     if (!confirm('Remove all orphaned worktrees (worktrees without active sessions)?')) {
+      focusActiveTerminal();
       return;
     }
 
@@ -137,6 +172,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     } catch (error) {
       alert(`Error cleaning worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+
+    focusActiveTerminal();
   };
 
   const getStatusColor = (status: SessionInfo['status']) => {
@@ -193,59 +230,103 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
                 <p>No active sessions</p>
               </div>
             ) : (
-              sessionList.map((session) => (
-                <div
-                  key={session.id}
-                  className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                  onClick={() => onSelectSession(session.id)}
-                >
-                  <div className="session-item-header">
-                    <span
-                      className="session-status"
-                      style={{ backgroundColor: getStatusColor(session.status) }}
-                      title={session.status}
-                    />
-                    {session.agentIcon && (
-                      <span className="session-agent-icon" title={session.agentName}>
-                        {session.agentIcon}
+              sessionList.map((session) => {
+                const status = agentStatuses.get(session.id);
+                return (
+                  <div
+                    key={session.id}
+                    className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
+                    onClick={() => onSelectSession(session.id)}
+                  >
+                    <div className="session-item-header">
+                      {status ? (
+                        <SessionStatusBadge
+                          activityState={status.activityState}
+                          taskSummary={null}
+                          recentFileChanges={[]}
+                          errorMessage={null}
+                          lastActivityTimestamp={status.lastActivityTimestamp}
+                          compact
+                        />
+                      ) : (
+                        <span
+                          className="session-status"
+                          style={{ backgroundColor: getStatusColor(session.status) }}
+                          title={session.status}
+                        />
+                      )}
+                      {session.agentIcon && (
+                        <span className="session-agent-icon" title={session.agentName}>
+                          {session.agentIcon}
+                        </span>
+                      )}
+                      <span className="session-id">{session.id.slice(0, 8)}</span>
+                      <span className={`session-type ${session.type}`}>
+                        {getTypeLabel(session)}
                       </span>
-                    )}
-                    <span className="session-id">{session.id.slice(0, 8)}</span>
-                    <span className={`session-type ${session.type}`}>
-                      {getTypeLabel(session)}
-                    </span>
-                  </div>
-
-                  <div className="session-item-details">
-                    <div className="session-path" title={session.cwd}>
-                      {formatPath(session.cwd)}
                     </div>
-                    {session.branch && (
-                      <div className="session-branch">
-                        <span className="branch-icon">&#8963;</span>
-                        {session.branch}
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="session-item-actions">
-                    {session.status === 'running' && (
-                      <button
-                        className="session-action-btn terminate"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onTerminateSession(session.id);
-                        }}
-                        title="Terminate session"
-                      >
-                        ×
-                      </button>
+                    {/* Agent status details */}
+                    {status && session.status === 'running' && (
+                      <SessionStatusBadge
+                        activityState={status.activityState}
+                        taskSummary={status.taskSummary}
+                        recentFileChanges={status.recentFileChanges}
+                        errorMessage={status.errorMessage}
+                        lastActivityTimestamp={status.lastActivityTimestamp}
+                      />
                     )}
+
+                    <div className="session-item-details">
+                      <div className="session-path" title={session.cwd}>
+                        {formatPath(session.cwd)}
+                      </div>
+                      {session.branch && (
+                        <div className="session-branch">
+                          <span className="branch-icon">&#8963;</span>
+                          {session.branch}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="session-item-actions">
+                      {session.status === 'running' && (
+                        <button
+                          className="session-action-btn terminate"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTerminateSession(session.id);
+                          }}
+                          title="Terminate session"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Activity Section */}
+      <div className="accordion-section">
+        <button
+          className="accordion-header"
+          onClick={() => toggleSection('activity')}
+          aria-expanded={expandedSections.activity}
+        >
+          <span className="accordion-toggle">
+            {expandedSections.activity ? '\u25BC' : '\u25B6'}
+          </span>
+          <span className="accordion-title">ACTIVITY</span>
+          <span className="accordion-count">{events.length}</span>
+        </button>
+
+        <div className={`accordion-content ${expandedSections.activity ? 'expanded' : ''}`}>
+          <ActivityFeed onSelectSession={onSelectSession} />
         </div>
       </div>
 

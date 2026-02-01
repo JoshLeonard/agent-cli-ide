@@ -3,12 +3,15 @@ import type {
   SessionConfig,
   SessionInfo,
   SessionCreateResult,
-  LayoutState,
-  PersistedState,
 } from '../shared/types/session';
+import type { PersistedLayoutState } from '../shared/types/layout';
+import type { PersistedState } from '../shared/types/ipc';
 import type { AgentConfig } from '../shared/types/agent';
 import type { ProjectInfo } from '../shared/types/project';
-import type { IpcEvents } from '../shared/types/ipc';
+import type { IpcEvents, WorktreeInfo, WorktreeResult } from '../shared/types/ipc';
+import type { AgentStatus } from '../shared/types/agentStatus';
+import type { ActivityEvent, ActivityFilter } from '../shared/types/activity';
+import type { SharedClipboard, MessageSendOptions } from '../shared/types/messaging';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -54,10 +57,10 @@ const api = {
 
   // Layout persistence
   layout: {
-    save: (layout: LayoutState): Promise<{ success: boolean }> =>
+    save: (layout: PersistedLayoutState): Promise<{ success: boolean }> =>
       ipcRenderer.invoke('layout:save', layout),
 
-    load: (): Promise<LayoutState | null> =>
+    load: (): Promise<PersistedLayoutState | null> =>
       ipcRenderer.invoke('layout:load'),
   },
 
@@ -106,6 +109,86 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['project:updated']) => callback(data);
       ipcRenderer.on('project:updated', handler);
       return () => ipcRenderer.removeListener('project:updated', handler);
+    },
+  },
+
+  // Worktree management
+  worktree: {
+    list: (repoPath: string): Promise<WorktreeInfo[]> =>
+      ipcRenderer.invoke('worktree:list', { repoPath }),
+
+    remove: (worktreePath: string): Promise<WorktreeResult> =>
+      ipcRenderer.invoke('worktree:remove', { worktreePath }),
+
+    cleanOrphaned: (): Promise<string[]> =>
+      ipcRenderer.invoke('worktree:cleanOrphaned'),
+
+    isGitRepo: (path: string): Promise<boolean> =>
+      ipcRenderer.invoke('worktree:isGitRepo', { path }),
+  },
+
+  // Agent status
+  agentStatus: {
+    get: (sessionId: string): Promise<AgentStatus | null> =>
+      ipcRenderer.invoke('agentStatus:get', { sessionId }),
+
+    getAll: (): Promise<AgentStatus[]> =>
+      ipcRenderer.invoke('agentStatus:getAll'),
+
+    onUpdated: (callback: EventCallback<IpcEvents['agentStatus:updated']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['agentStatus:updated']) => callback(data);
+      ipcRenderer.on('agentStatus:updated', handler);
+      return () => ipcRenderer.removeListener('agentStatus:updated', handler);
+    },
+  },
+
+  // Activity feed
+  activity: {
+    getEvents: (filter: ActivityFilter): Promise<ActivityEvent[]> =>
+      ipcRenderer.invoke('activity:getEvents', filter),
+
+    clearEvents: (sessionId?: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('activity:clearEvents', { sessionId }),
+
+    onEvent: (callback: EventCallback<IpcEvents['activity:event']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['activity:event']) => callback(data);
+      ipcRenderer.on('activity:event', handler);
+      return () => ipcRenderer.removeListener('activity:event', handler);
+    },
+  },
+
+  // Messaging
+  messaging: {
+    send: (
+      targetSessionIds: string[],
+      content: string,
+      options?: MessageSendOptions
+    ): Promise<{ success: boolean; messageId?: string; error?: string }> =>
+      ipcRenderer.invoke('messaging:send', { targetSessionIds, content, options }),
+
+    broadcast: (
+      content: string,
+      options?: MessageSendOptions,
+      excludeSessionId?: string
+    ): Promise<{ success: boolean; messageId?: string; targetCount?: number; error?: string }> =>
+      ipcRenderer.invoke('messaging:broadcast', { content, options, excludeSessionId }),
+
+    setClipboard: (content: string, sourceSessionId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('messaging:setClipboard', { content, sourceSessionId }),
+
+    getClipboard: (): Promise<SharedClipboard | null> =>
+      ipcRenderer.invoke('messaging:getClipboard'),
+
+    onSent: (callback: EventCallback<IpcEvents['message:sent']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['message:sent']) => callback(data);
+      ipcRenderer.on('message:sent', handler);
+      return () => ipcRenderer.removeListener('message:sent', handler);
+    },
+
+    onReceived: (callback: EventCallback<IpcEvents['message:received']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['message:received']) => callback(data);
+      ipcRenderer.on('message:received', handler);
+      return () => ipcRenderer.removeListener('message:received', handler);
     },
   },
 };

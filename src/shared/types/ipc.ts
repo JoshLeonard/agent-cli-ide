@@ -1,6 +1,18 @@
-import type { SessionConfig, SessionInfo, SessionCreateResult, LayoutState, PersistedState } from './session';
+import type { SessionConfig, SessionInfo, SessionCreateResult } from './session';
+import type { PersistedLayoutState } from './layout';
 import type { AgentConfig } from './agent';
 import type { ProjectInfo } from './project';
+import type { WorktreeInfo, WorktreeResult } from '../../main/services/GitWorktreeManager';
+import type { AgentStatus } from './agentStatus';
+import type { ActivityEvent, ActivityFilter } from './activity';
+import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from './messaging';
+
+export interface PersistedState {
+  sessions: SessionInfo[];
+  layout: PersistedLayoutState;
+  lastSaved: number;
+  projectPath?: string;
+}
 
 // Request/Response channels (invoke/handle)
 export interface IpcChannels {
@@ -29,12 +41,12 @@ export interface IpcChannels {
     response: SessionInfo | null;
   };
   'layout:save': {
-    request: LayoutState;
+    request: PersistedLayoutState;
     response: { success: boolean };
   };
   'layout:load': {
     request: void;
-    response: LayoutState | null;
+    response: PersistedLayoutState | null;
   };
   'persistence:restore': {
     request: void;
@@ -76,6 +88,65 @@ export interface IpcChannels {
     request: void;
     response: ProjectInfo | null;
   };
+  'worktree:list': {
+    request: { repoPath: string };
+    response: WorktreeInfo[];
+  };
+  'worktree:remove': {
+    request: { worktreePath: string };
+    response: WorktreeResult;
+  };
+  'worktree:cleanOrphaned': {
+    request: void;
+    response: string[];
+  };
+  'worktree:isGitRepo': {
+    request: { path: string };
+    response: boolean;
+  };
+  // Agent Status
+  'agentStatus:get': {
+    request: { sessionId: string };
+    response: AgentStatus | null;
+  };
+  'agentStatus:getAll': {
+    request: void;
+    response: AgentStatus[];
+  };
+  // Activity Feed
+  'activity:getEvents': {
+    request: ActivityFilter;
+    response: ActivityEvent[];
+  };
+  'activity:clearEvents': {
+    request: { sessionId?: string };
+    response: { success: boolean };
+  };
+  // Messaging
+  'messaging:send': {
+    request: {
+      targetSessionIds: string[];
+      content: string;
+      options?: MessageSendOptions;
+    };
+    response: { success: boolean; messageId?: string; error?: string };
+  };
+  'messaging:broadcast': {
+    request: {
+      content: string;
+      options?: MessageSendOptions;
+      excludeSessionId?: string;
+    };
+    response: { success: boolean; messageId?: string; targetCount?: number; error?: string };
+  };
+  'messaging:setClipboard': {
+    request: { content: string; sourceSessionId: string };
+    response: { success: boolean };
+  };
+  'messaging:getClipboard': {
+    request: void;
+    response: SharedClipboard | null;
+  };
 }
 
 // Event channels (send/on)
@@ -94,7 +165,23 @@ export interface IpcEvents {
   'project:updated': {
     project: ProjectInfo;
   };
+  'agentStatus:updated': {
+    status: AgentStatus;
+  };
+  'activity:event': {
+    event: ActivityEvent;
+  };
+  'message:sent': {
+    message: InterSessionMessage;
+  };
+  'message:received': {
+    message: InterSessionMessage;
+    targetSessionId: string;
+  };
 }
 
 export type IpcChannel = keyof IpcChannels;
 export type IpcEvent = keyof IpcEvents;
+
+// Re-export worktree types for convenience
+export type { WorktreeInfo, WorktreeResult } from '../../main/services/GitWorktreeManager';
