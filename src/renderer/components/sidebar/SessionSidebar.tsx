@@ -122,6 +122,16 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     }
   }, [expandedSections.worktrees, loadWorktrees]);
 
+  // Subscribe to worktree filesystem changes
+  useEffect(() => {
+    const unsubscribe = window.terminalIDE.worktree.onChanged(({ projectPath }) => {
+      if (currentProject?.path === projectPath) {
+        loadWorktrees();
+      }
+    });
+    return unsubscribe;
+  }, [currentProject?.path, loadWorktrees]);
+
   // Subscribe to agent status updates
   useEffect(() => {
     const unsubscribe = window.terminalIDE.agentStatus.onUpdated(({ status }) => {

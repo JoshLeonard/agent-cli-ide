@@ -128,6 +128,12 @@ const api = {
 
     isGitRepo: (path: string): Promise<boolean> =>
       ipcRenderer.invoke('worktree:isGitRepo', { path }),
+
+    onChanged: (callback: EventCallback<IpcEvents['worktree:changed']>) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: IpcEvents['worktree:changed']) => callback(data);
+      ipcRenderer.on('worktree:changed', handler);
+      return () => ipcRenderer.removeListener('worktree:changed', handler);
+    },
   },
 
   // Agent status

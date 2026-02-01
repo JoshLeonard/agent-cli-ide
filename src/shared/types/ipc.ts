@@ -189,6 +189,9 @@ export interface IpcEvents {
     message: InterSessionMessage;
     targetSessionId: string;
   };
+  'worktree:changed': {
+    projectPath: string;
+  };
 }
 
 export type IpcChannel = keyof IpcChannels;

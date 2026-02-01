@@ -8,6 +8,7 @@ import { eventBus, Events } from '../services/EventBus';
 import { agentStatusTracker } from '../services/AgentStatusTracker';
 import { activityFeedService } from '../services/ActivityFeedService';
 import { messagingService } from '../services/MessagingService';
+import { worktreeWatcherService } from '../services/WorktreeWatcherService';
 import type { SessionConfig } from '../../shared/types/session';
 import type { PersistedLayoutState } from '../../shared/types/layout';
 import type { AgentStatus } from '../../shared/types/agentStatus';
@@ -101,10 +102,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // Project handlers
   ipcMain.handle('project:open', async (_event, { path }: { path: string }) => {
-    return projectService.openProject(path);
+    const result = await projectService.openProject(path);
+    if (result.success && result.project?.isGitRepo) {
+      worktreeWatcherService.watchProject(path);
+    }
+    return result;
   });
 
   ipcMain.handle('project:close', async () => {
+    worktreeWatcherService.stopWatching();
     return projectService.closeProject();
   });
 
@@ -224,12 +230,17 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   eventBus.on(Events.MESSAGE_RECEIVED, (data) => {
     mainWindow.webContents.send('message:received', data);
   });
+
+  eventBus.on(Events.WORKTREE_CHANGED, (data) => {
+    mainWindow.webContents.send('worktree:changed', data);
+  });
 }
 
 export function unregisterIpcHandlers(): void {
   // Shutdown services
   agentStatusTracker.shutdown();
   activityFeedService.shutdown();
+  worktreeWatcherService.shutdown();
 
   ipcMain.removeHandler('session:create');
   ipcMain.removeHandler('session:terminate');
