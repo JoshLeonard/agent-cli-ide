@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { gitWorktreeManager } from '../../services/GitWorktreeManager';
 import { persistenceService } from '../../services/PersistenceService';
+import { sessionRegistry } from '../../services/SessionRegistry';
 
 export function registerWorktreeHandlers(): void {
   ipcMain.handle('worktree:list', async (_event, { repoPath }: { repoPath: string }) => {
@@ -8,6 +9,12 @@ export function registerWorktreeHandlers(): void {
   });
 
   ipcMain.handle('worktree:remove', async (_event, { worktreePath }: { worktreePath: string }) => {
+    // Terminate any sessions associated with this worktree before removing it
+    const terminatedSessionIds = await sessionRegistry.terminateSessionsForWorktree(worktreePath);
+    if (terminatedSessionIds.length > 0) {
+      console.log(`Terminated ${terminatedSessionIds.length} session(s) for worktree: ${worktreePath}`);
+    }
+
     return gitWorktreeManager.removeWorktree(worktreePath);
   });
 

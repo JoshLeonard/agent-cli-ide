@@ -139,22 +139,22 @@ app.whenReady().then(async () => {
   // Initialize settings service
   await settingsService.initialize();
 
+  // Restore sessions from previous run if enabled (do this BEFORE worktree cleanup)
+  const settings = settingsService.get();
+  if (settings.restoreSessionsOnStartup) {
+    await restoreSessions();
+  }
+
   // Retry any pending worktree deletions from previous sessions
   const retried = await gitWorktreeManager.retryPendingDeletions();
   if (retried.length > 0) {
     console.log(`Cleaned up ${retried.length} pending worktree deletions`);
   }
 
-  // Clean up orphaned worktrees from previous sessions
+  // Clean up orphaned worktrees (only those with invalid git metadata)
   const cleaned = await gitWorktreeManager.cleanupOrphaned();
   if (cleaned.length > 0) {
     console.log(`Cleaned up ${cleaned.length} orphaned worktrees`);
-  }
-
-  // Restore sessions from previous run if enabled
-  const settings = settingsService.get();
-  if (settings.restoreSessionsOnStartup) {
-    await restoreSessions();
   }
 
   await createWindow();
