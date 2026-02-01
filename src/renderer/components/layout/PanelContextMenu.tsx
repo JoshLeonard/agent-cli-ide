@@ -84,7 +84,7 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
           className="context-menu-item"
           onClick={() => handleItemClick(onCopyToClipboard)}
         >
-          <span className="context-menu-icon">\u2398</span>
+          <span className="context-menu-icon">{'\u2398'}</span>
           Copy to Shared Clipboard
         </button>
       )}
@@ -93,7 +93,7 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
           className="context-menu-item"
           onClick={() => handleItemClick(onSendToSession)}
         >
-          <span className="context-menu-icon">\u2192</span>
+          <span className="context-menu-icon">{'\u2192'}</span>
           Send to Session...
         </button>
       )}
@@ -102,7 +102,7 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
           className="context-menu-item"
           onClick={() => handleItemClick(onPasteSharedClipboard)}
         >
-          <span className="context-menu-icon">\u2193</span>
+          <span className="context-menu-icon">{'\u2193'}</span>
           Paste Shared Clipboard
         </button>
       )}
