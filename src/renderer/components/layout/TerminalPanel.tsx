@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { TerminalPanel as TerminalPanelType } from '../../../shared/types/layout';
 import type { QuickCommand } from '../../../shared/types/settings';
+import type { BranchInfo } from './GitMergeBranchSubmenu';
 import { PanelContextMenu } from './PanelContextMenu';
 import { PanelHeader } from './PanelHeader';
 import { TerminalContainer } from '../terminal/TerminalContainer';
@@ -9,6 +10,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useLayoutStore } from '../../stores/layoutStore';
 import { useMessagingStore } from '../../stores/messagingStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useProjectStore } from '../../stores/projectStore';
 import { useToastStore } from '../../stores/toastStore';
 import './TerminalPanel.css';
 import '../terminal/MessageFeedback.css';
@@ -44,6 +46,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   });
   const [isDragOver, setDragOver] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [mergeBranches, setMergeBranches] = useState<BranchInfo[]>([]);
 
   const { setActivePanel, clearPanelSession, sessions } = useLayoutStore();
   const { openQuickSend } = useMessagingStore();
@@ -56,7 +59,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     setActivePanel(panel.id);
   }, [panel.id, setActivePanel]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     // Only show context menu if panel has a session
     if (panel.sessionId) {
@@ -65,8 +68,49 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
         x: e.clientX,
         y: e.clientY,
       });
+
+      // Fetch branches for merge submenu
+      const project = useProjectStore.getState().currentProject;
+      if (project?.isGitRepo) {
+        try {
+          const worktrees = await window.terminalIDE.worktree.list(project.path);
+          const currentBranch = session?.branch || project.gitBranch;
+
+          const branches: BranchInfo[] = [];
+          const seenBranches = new Set<string>();
+
+          // Add main branch first
+          if (project.gitBranch) {
+            branches.push({
+              name: project.gitBranch,
+              isMain: true,
+              isCurrent: project.gitBranch === currentBranch,
+            });
+            seenBranches.add(project.gitBranch);
+          }
+
+          // Add worktree branches (deduplicated)
+          for (const wt of worktrees) {
+            if (wt.branch && !seenBranches.has(wt.branch)) {
+              branches.push({
+                name: wt.branch,
+                isMain: false,
+                isCurrent: wt.branch === currentBranch,
+              });
+              seenBranches.add(wt.branch);
+            }
+          }
+
+          setMergeBranches(branches);
+        } catch {
+          // If worktree list fails, just show empty branches
+          setMergeBranches([]);
+        }
+      } else {
+        setMergeBranches([]);
+      }
     }
-  }, [panel.sessionId]);
+  }, [panel.sessionId, session?.branch]);
 
   const handleDismissContextMenu = useCallback(() => {
     setContextMenu((prev) => ({ ...prev, isOpen: false }));
@@ -130,6 +174,11 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     const addNewline = command.addNewline !== false; // Default to true
     const content = addNewline ? command.command + '\n' : command.command;
     await window.terminalIDE.session.write(panel.sessionId, content);
+  }, [panel.sessionId]);
+
+  const handleGitMerge = useCallback(async (branchName: string) => {
+    if (!panel.sessionId) return;
+    await window.terminalIDE.session.write(panel.sessionId, `git merge ${branchName}\n`);
   }, [panel.sessionId]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -199,12 +248,14 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
           position={{ x: contextMenu.x, y: contextMenu.y }}
           sessionId={panel.sessionId}
           quickCommands={settings.quickCommands}
+          mergeBranches={mergeBranches}
           onCloseSession={handleCloseSession}
           onCopyToClipboard={handleCopyToClipboard}
           onSendToSession={handleSendToSession}
           onPasteSharedClipboard={handlePasteSharedClipboard}
           onPasteOSClipboard={handlePasteOSClipboard}
           onQuickCommand={handleQuickCommand}
+          onGitMerge={handleGitMerge}
           onDismiss={handleDismissContextMenu}
         />
       )}

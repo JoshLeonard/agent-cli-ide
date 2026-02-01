@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { QuickCommandsSubmenu } from './QuickCommandsSubmenu';
+import { GitMergeBranchSubmenu, type BranchInfo } from './GitMergeBranchSubmenu';
 import type { QuickCommand } from '../../../shared/types/settings';
 import './PanelContextMenu.css';
 
@@ -12,12 +13,14 @@ interface PanelContextMenuProps {
   position: ContextMenuPosition;
   sessionId?: string;
   quickCommands?: QuickCommand[];
+  mergeBranches?: BranchInfo[];
   onCloseSession: () => void;
   onCopyToClipboard?: () => void;
   onSendToSession?: () => void;
   onPasteSharedClipboard?: () => void;
   onPasteOSClipboard?: () => void;
   onQuickCommand?: (command: QuickCommand) => void;
+  onGitMerge?: (branchName: string) => void;
   onDismiss: () => void;
 }
 
@@ -25,18 +28,23 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
   position,
   sessionId,
   quickCommands,
+  mergeBranches,
   onCloseSession,
   onCopyToClipboard,
   onSendToSession,
   onPasteSharedClipboard,
   onPasteOSClipboard,
   onQuickCommand,
+  onGitMerge,
   onDismiss,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [showQuickCommands, setShowQuickCommands] = useState(false);
   const [quickCommandsPosition, setQuickCommandsPosition] = useState({ x: 0, y: 0 });
   const quickCommandsItemRef = useRef<HTMLButtonElement>(null);
+  const [showMergeBranches, setShowMergeBranches] = useState(false);
+  const [mergeBranchesPosition, setMergeBranchesPosition] = useState({ x: 0, y: 0 });
+  const mergeBranchesItemRef = useRef<HTMLButtonElement>(null);
 
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
@@ -104,6 +112,28 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
     }
     onDismiss();
   }, [onQuickCommand, onDismiss]);
+
+  const handleMergeBranchesHover = useCallback(() => {
+    if (mergeBranchesItemRef.current) {
+      const rect = mergeBranchesItemRef.current.getBoundingClientRect();
+      setMergeBranchesPosition({
+        x: rect.right,
+        y: rect.top,
+      });
+      setShowMergeBranches(true);
+    }
+  }, []);
+
+  const handleMergeBranchesLeave = useCallback(() => {
+    setShowMergeBranches(false);
+  }, []);
+
+  const handleGitMergeExecute = useCallback((branchName: string) => {
+    if (onGitMerge) {
+      onGitMerge(branchName);
+    }
+    onDismiss();
+  }, [onGitMerge, onDismiss]);
 
   return (
     <div
@@ -179,8 +209,33 @@ export const PanelContextMenu: React.FC<PanelContextMenuProps> = ({
         </div>
       )}
 
+      {/* Git Merge Branch submenu */}
+      {sessionId && mergeBranches && mergeBranches.length > 0 && onGitMerge && (
+        <div
+          className="context-menu-item-wrapper"
+          onMouseEnter={handleMergeBranchesHover}
+          onMouseLeave={handleMergeBranchesLeave}
+        >
+          <button
+            ref={mergeBranchesItemRef}
+            className="context-menu-item has-submenu"
+          >
+            <span className="context-menu-icon">{'\u{1F500}'}</span>
+            Git Merge Branch
+            <span className="submenu-arrow">{'\u25B6'}</span>
+          </button>
+          {showMergeBranches && (
+            <GitMergeBranchSubmenu
+              branches={mergeBranches}
+              onMerge={handleGitMergeExecute}
+              parentPosition={mergeBranchesPosition}
+            />
+          )}
+        </div>
+      )}
+
       {/* Separator before danger zone */}
-      {sessionId && quickCommands && quickCommands.length > 0 && (
+      {sessionId && ((quickCommands && quickCommands.length > 0) || (mergeBranches && mergeBranches.length > 0)) && (
         <div className="context-menu-separator" />
       )}
 
