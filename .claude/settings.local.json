@@ -24,7 +24,16 @@
       "Bash(Get-ChildItem -Path src -Recurse -Filter \"*.d.ts\")",
       "Bash(npx rimraf:*)",
       "Bash(npm start)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd project-based workflow and status bar\n\nTransform Terminal IDE into a project-based IDE like VS Code/Cursor:\n- App opens to a welcome screen \\(blank slate\\)\n- User opens a folder which becomes the project root\n- Status bar at bottom shows current directory and git branch\n\nNew files:\n- src/shared/types/project.ts: ProjectInfo interface\n- src/main/services/ProjectService.ts: Project management service\n- src/renderer/stores/projectStore.ts: Zustand store for project state\n- src/renderer/components/WelcomeScreen.tsx: Welcome screen with Open Project button\n- src/renderer/components/StatusBar.tsx: Status bar showing path and git branch\n\nModified files:\n- src/shared/types/ipc.ts: Add project:open, project:close, project:getCurrent channels\n- src/main/ipc/handlers.ts: Add project IPC handlers\n- src/preload/index.ts: Add project namespace with open/close/getCurrent/onUpdated\n- src/renderer/App.tsx: Integrate project state, conditional rendering, status bar\n- src/renderer/styles/index.css: Add welcome screen and status bar styles\n- src/main/services/PersistenceService.ts: Add projectPath persistence\n- src/main/index.ts: Restore project on startup\n- src/renderer/components/NewSessionDialog.tsx: Default cwd to project path\n\nFeatures:\n- Welcome screen shown when no project is open\n- Folder picker dialog via \"Open Project\" button\n- Status bar displays folder path \\(left\\) and git branch \\(right\\)\n- Git branch polled every 5 seconds with auto-update on change\n- Project path persisted and restored on app restart\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(electron:*)",
+      "Bash(npx electron .)",
+      "Bash(git commit:*)",
+      "Bash(npm run start:*)",
+      "Bash(cd:*)",
+      "Bash(npx eslint:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
     ]
   }
 }
