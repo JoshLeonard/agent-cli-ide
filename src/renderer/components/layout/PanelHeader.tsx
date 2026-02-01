@@ -1,5 +1,7 @@
 import React from 'react';
 import type { SessionInfo } from '../../../shared/types/session';
+import { FileReviewBadge } from '../review/FileReviewBadge';
+import { useFileReviewStore } from '../../stores/fileReviewStore';
 
 interface PanelHeaderProps {
   session: SessionInfo;
@@ -15,6 +17,11 @@ function getBasename(path: string): string {
 export const PanelHeader: React.FC<PanelHeaderProps> = ({ session, onClose }) => {
   const displayName = session.branch || getBasename(session.cwd);
   const icon = session.agentIcon || '📟';
+  const openReview = useFileReviewStore((state) => state.openReview);
+
+  const handleReviewClick = () => {
+    openReview(session.id);
+  };
 
   return (
     <div className="panel-header">
@@ -22,6 +29,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({ session, onClose }) =>
       <span className="panel-header-title" title={session.cwd}>
         {displayName}
       </span>
+      <FileReviewBadge sessionId={session.id} onClick={handleReviewClick} />
       <button
         className="panel-header-close"
         onClick={(e) => {

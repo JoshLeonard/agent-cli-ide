@@ -7,3 +7,4 @@ export { registerMessagingHandlers, unregisterMessagingHandlers } from './messag
 export { registerWindowHandlers, unregisterWindowHandlers } from './window';
 export { registerSettingsHandlers, unregisterSettingsHandlers } from './settings';
 export { registerEventForwarders, unregisterEventForwarders } from './events';
+export { registerFileReviewHandlers, unregisterFileReviewHandlers } from './fileReview';

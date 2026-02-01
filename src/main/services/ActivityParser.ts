@@ -7,9 +7,11 @@ const PATTERNS = {
   fileCreated: [
     { pattern: /(?:Created|Wrote|Writing to)\s+(?:file:?\s+)?['"]?([^\s'"]+\.[a-zA-Z0-9]+)/gi, type: 'file_created' as ActivityType },
     { pattern: /(?:New file:?|Creating)\s+['"]?([^\s'"]+\.[a-zA-Z0-9]+)/gi, type: 'file_created' as ActivityType },
+    { pattern: /File created successfully at:\s+['"]?([^\s'"]+\.[a-zA-Z0-9]+)/gi, type: 'file_created' as ActivityType },
   ],
   fileModified: [
     { pattern: /(?:Edited|Modified|Updated|Updating|Edit)\s+['"]?([^\s'"]+\.[a-zA-Z0-9]+)/gi, type: 'file_modified' as ActivityType },
+    { pattern: /The file\s+['"]?([^\s'"]+\.[a-zA-Z0-9]+)['"]?\s+has been (?:updated|edited|modified)/gi, type: 'file_modified' as ActivityType },
   ],
   fileDeleted: [
     { pattern: /(?:Deleted|Removed|Removing)\s+(?:file:?\s+)?['"]?([^\s'"]+\.[a-zA-Z0-9]+)/gi, type: 'file_deleted' as ActivityType },

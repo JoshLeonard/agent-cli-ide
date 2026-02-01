@@ -7,6 +7,14 @@ import type { AgentStatus } from './agentStatus';
 import type { ActivityEvent, ActivityFilter } from './activity';
 import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from './messaging';
 import type { Settings, PartialSettings } from './settings';
+import type {
+  FileReviewRequest,
+  FileReviewResult,
+  FileSaveRequest,
+  FileSaveResult,
+  FileRevertRequest,
+  FileRevertResult,
+} from './fileReview';
 
 export interface RecentProject {
   path: string;
@@ -201,6 +209,19 @@ export interface IpcChannels {
   'settings:reset': {
     request: void;
     response: Settings;
+  };
+  // File Review
+  'fileReview:getDiff': {
+    request: FileReviewRequest;
+    response: FileReviewResult;
+  };
+  'fileReview:saveFile': {
+    request: FileSaveRequest;
+    response: FileSaveResult;
+  };
+  'fileReview:revertFile': {
+    request: FileRevertRequest;
+    response: FileRevertResult;
   };
 }
 

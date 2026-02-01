@@ -18,7 +18,9 @@ import {
   useKeyboardShortcuts,
   useLayoutPersistence,
   useProjectLoader,
+  useFileReview,
 } from './hooks';
+import { FileReviewModal } from './components/review/FileReviewModal';
 import type { SessionType } from '../shared/types/session';
 import './components/messaging/QuickSendDialog.css';
 
@@ -60,6 +62,7 @@ const App: React.FC = () => {
   useSessionSync();
   useIpcSubscriptions();
   useLayoutPersistence();
+  useFileReview();
   const { handlePasteSharedClipboard } = useKeyboardShortcuts({
     onOpenSettings: () => setSettingsOpen(true),
   });
@@ -293,6 +296,7 @@ const App: React.FC = () => {
         onConfirm={handleConfirmMoveSession}
         onCancel={handleCancelMoveSession}
       />
+      <FileReviewModal />
     </div>
   );
 };

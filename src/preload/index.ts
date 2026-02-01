@@ -13,6 +13,11 @@ import type { AgentStatus } from '../shared/types/agentStatus';
 import type { ActivityEvent, ActivityFilter } from '../shared/types/activity';
 import type { SharedClipboard, MessageSendOptions } from '../shared/types/messaging';
 import type { Settings, PartialSettings } from '../shared/types/settings';
+import type {
+  FileReviewResult,
+  FileSaveResult,
+  FileRevertResult,
+} from '../shared/types/fileReview';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -219,6 +224,18 @@ const api = {
       ipcRenderer.invoke('settings:reset'),
 
     onUpdated: createEventSubscriber('settings:updated'),
+  },
+
+  // File Review
+  fileReview: {
+    getDiff: (sessionId: string, filePath: string): Promise<FileReviewResult> =>
+      ipcRenderer.invoke('fileReview:getDiff', { sessionId, filePath }),
+
+    saveFile: (sessionId: string, filePath: string, content: string): Promise<FileSaveResult> =>
+      ipcRenderer.invoke('fileReview:saveFile', { sessionId, filePath, content }),
+
+    revertFile: (sessionId: string, filePath: string): Promise<FileRevertResult> =>
+      ipcRenderer.invoke('fileReview:revertFile', { sessionId, filePath }),
   },
 };
 
