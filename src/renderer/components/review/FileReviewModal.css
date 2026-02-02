@@ -277,3 +277,217 @@
 .file-review-modal-btn--danger:hover:not(:disabled) {
   background-color: #6e2424;
 }
+
+/* File Review List Container */
+.file-review-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* View Mode Toggle */
+.file-review-view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 8px 8px 4px 8px;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.file-review-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #808080;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.file-review-view-toggle-btn:hover {
+  background-color: #3c3c3c;
+  color: #cccccc;
+}
+
+.file-review-view-toggle-btn--active {
+  background-color: #094771;
+  color: #ffffff;
+}
+
+.file-review-view-toggle-btn--active:hover {
+  background-color: #094771;
+}
+
+.file-review-view-toggle-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* Tree icon - simple branching structure */
+.file-review-view-toggle-icon--tree {
+  position: relative;
+}
+
+.file-review-view-toggle-icon--tree::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  width: 2px;
+  height: 10px;
+  background-color: currentColor;
+}
+
+.file-review-view-toggle-icon--tree::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 4px;
+  width: 6px;
+  height: 2px;
+  background-color: currentColor;
+  box-shadow: 0 4px 0 currentColor;
+}
+
+/* List icon - horizontal lines */
+.file-review-view-toggle-icon--list::before {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 2px;
+  background-color: currentColor;
+  box-shadow: 0 4px 0 currentColor, 0 8px 0 currentColor;
+  margin-top: 2px;
+}
+
+/* File Tree */
+.file-tree {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.file-tree--empty {
+  padding: 16px;
+  color: #808080;
+  font-size: 12px;
+  text-align: center;
+}
+
+.file-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  color: #cccccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  user-select: none;
+}
+
+.file-tree-item:hover {
+  background-color: #2a2d2e;
+}
+
+.file-tree-item--selected {
+  background-color: #094771;
+}
+
+.file-tree-item--selected:hover {
+  background-color: #094771;
+}
+
+.file-tree-item--reviewed {
+  opacity: 0.6;
+}
+
+.file-tree-item:focus {
+  outline: 1px solid #007fd4;
+  outline-offset: -1px;
+}
+
+.file-tree-expand {
+  width: 12px;
+  font-size: 10px;
+  color: #808080;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.file-tree-type-icon {
+  width: 16px;
+  font-family: monospace;
+  font-weight: bold;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.file-tree-type-icon--folder {
+  position: relative;
+}
+
+/* Folder icon using CSS */
+.file-tree-type-icon--folder::before {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 10px;
+  background-color: #dcb67a;
+  border-radius: 1px;
+  position: relative;
+  top: 1px;
+}
+
+.file-tree-type-icon--folder::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 3px;
+  background-color: #dcb67a;
+  border-radius: 1px 1px 0 0;
+}
+
+.file-tree-icon--added {
+  color: #89d185;
+}
+
+.file-tree-icon--modified {
+  color: #e2c08d;
+}
+
+.file-tree-icon--deleted {
+  color: #f14c4c;
+}
+
+.file-tree-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-tree-count {
+  color: #808080;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.file-tree-unsaved {
+  color: #f14c4c;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.file-tree-children {
+  display: flex;
+  flex-direction: column;
+}
