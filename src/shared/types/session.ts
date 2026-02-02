@@ -7,6 +7,7 @@ export interface SessionConfig {
   branch?: string;  // For isolated sessions
   shell?: string;   // Override default shell
   agentId?: string; // Reference to AgentConfig.id
+  enableDebugApi?: boolean; // Enable HTTP debug API for AI agents
 }
 
 export interface SessionInfo {
@@ -21,6 +22,8 @@ export interface SessionInfo {
   agentId?: string;    // Reference to AgentConfig.id
   agentName?: string;  // Display name for UI
   agentIcon?: string;  // Icon for UI
+  enableDebugApi?: boolean; // Whether HTTP debug API is enabled
+  debugApiToken?: string;   // Token for debug API authentication (not persisted)
 }
 
 export interface SessionCreateResult {

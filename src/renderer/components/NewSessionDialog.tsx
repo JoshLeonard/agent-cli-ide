@@ -12,6 +12,7 @@ interface NewSessionDialogProps {
     cwd: string;
     branch?: string;
     agentId?: string;
+    enableDebugApi?: boolean;
   }) => void;
 }
 
@@ -28,6 +29,7 @@ export const NewSessionDialog: React.FC<NewSessionDialogProps> = ({
   const [branch, setBranch] = useState('');
   const [isGitRepo, setIsGitRepo] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [enableDebugApi, setEnableDebugApi] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -37,6 +39,7 @@ export const NewSessionDialog: React.FC<NewSessionDialogProps> = ({
       setCwd(currentProject?.path || '');
       setIsGitRepo(currentProject?.isGitRepo || false);
       setBranch('');
+      setEnableDebugApi(false);
       setLoading(true);
 
       // Load available agents
@@ -74,14 +77,23 @@ export const NewSessionDialog: React.FC<NewSessionDialogProps> = ({
     e.preventDefault();
     if (!cwd || !selectedAgentId) return;
 
+    // Only include enableDebugApi if it's enabled and agent is an AI agent
+    const selectedAgent = agents.find(a => a.id === selectedAgentId);
+    const includeDebugApi = enableDebugApi && selectedAgent?.category === 'ai-agent';
+
     onSubmit({
       type,
       cwd,
       branch: type === 'isolated' ? branch : undefined,
       agentId: selectedAgentId,
+      enableDebugApi: includeDebugApi || undefined,
     });
     onClose();
   };
+
+  // Check if selected agent is an AI agent
+  const selectedAgent = agents.find(a => a.id === selectedAgentId);
+  const isAiAgent = selectedAgent?.category === 'ai-agent';
 
   // Group agents by category
   const groupedAgents = agents.reduce<Record<AgentCategory, AgentConfig[]>>(
@@ -267,6 +279,24 @@ export const NewSessionDialog: React.FC<NewSessionDialogProps> = ({
                 />
                 <span className="form-hint">
                   Creates a new branch if it doesn't exist
+                </span>
+              </div>
+            )}
+
+            {/* Debug API (only for AI agents) */}
+            {isAiAgent && (
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={enableDebugApi}
+                    onChange={(e) => setEnableDebugApi(e.target.checked)}
+                  />
+                  <span>Enable Debug API</span>
+                </label>
+                <span className="form-hint">
+                  Exposes an HTTP API for programmatic debugger control.
+                  Installs /debug command for the agent.
                 </span>
               </div>
             )}

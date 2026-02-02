@@ -19,6 +19,10 @@ import type {
   FileRevertResult,
 } from '../shared/types/fileReview';
 import type {
+  DebugAttachConfig,
+  DAPPreset,
+} from '../shared/types/debug';
+import type {
   GitStatusResult,
   GitBranchListResult,
   GitLogResult,
@@ -256,7 +260,7 @@ const api = {
   // Debug
   debug: {
     // Session management
-    attach: (sessionId: string, config: { protocol: string; host?: string; port?: number; language?: string }) =>
+    attach: (sessionId: string, config: DebugAttachConfig) =>
       ipcRenderer.invoke('debug:attach', { sessionId, config }),
     detach: (sessionId: string) =>
       ipcRenderer.invoke('debug:detach', { sessionId }),
@@ -311,6 +315,20 @@ const api = {
     // Evaluation
     evaluate: (sessionId: string, expression: string, frameId?: number) =>
       ipcRenderer.invoke('debug:evaluate', { sessionId, expression, frameId }),
+
+    // DAP presets
+    getDAPPresets: (): Promise<Record<DAPPreset, { name: string; adapterPath: string; installCommand: string }>> =>
+      ipcRenderer.invoke('debug:getDAPPresets'),
+
+    // Debug HTTP API management
+    enableApi: (sessionId: string, workdir: string): Promise<{ success: boolean; apiUrl?: string; token?: string; error?: string }> =>
+      ipcRenderer.invoke('debug:enableApi', { sessionId, workdir }),
+
+    disableApi: (sessionId: string, workdir: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('debug:disableApi', { sessionId, workdir }),
+
+    getApiStatus: (): Promise<{ running: boolean; port?: number; url?: string }> =>
+      ipcRenderer.invoke('debug:getApiStatus'),
 
     // Events
     onSessionCreated: createEventSubscriber('debug:sessionCreated'),

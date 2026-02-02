@@ -68,7 +68,7 @@ const App: React.FC = () => {
     onOpenSettings: () => setSettingsOpen(true),
   });
 
-  const handleCreateSession = async (config: { type: SessionType; cwd: string; branch?: string; agentId?: string }) => {
+  const handleCreateSession = async (config: { type: SessionType; cwd: string; branch?: string; agentId?: string; enableDebugApi?: boolean }) => {
     const sessionConfig = {
       ...config,
       cwd: config.cwd || currentProject?.path || process.cwd(),

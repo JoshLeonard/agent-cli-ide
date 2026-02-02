@@ -16,20 +16,24 @@ export class Session {
   readonly agentId?: string;
   readonly agentName?: string;
   readonly agentIcon?: string;
+  readonly enableDebugApi?: boolean;
 
   private _status: SessionStatus = 'initializing';
   private _pid?: number;
   private pty?: IPty;
   private dataBuffer: string[] = [];
   private agent?: AgentConfig;
+  private _debugApiToken?: string;
 
-  constructor(config: SessionConfig & { id?: string; worktreePath?: string }) {
+  constructor(config: SessionConfig & { id?: string; worktreePath?: string; debugApiToken?: string }) {
     this.id = config.id || uuidv4();
     this.type = config.type;
     this.cwd = config.worktreePath || config.cwd;
     this.branch = config.branch;
     this.worktreePath = config.worktreePath;
     this.createdAt = Date.now();
+    this.enableDebugApi = config.enableDebugApi;
+    this._debugApiToken = config.debugApiToken;
 
     // Load agent info if agentId provided
     if (config.agentId) {
@@ -42,6 +46,14 @@ export class Session {
     }
   }
 
+  get debugApiToken(): string | undefined {
+    return this._debugApiToken;
+  }
+
+  setDebugApiToken(token: string): void {
+    this._debugApiToken = token;
+  }
+
   get status(): SessionStatus {
     return this._status;
   }
@@ -50,13 +62,18 @@ export class Session {
     return this._pid;
   }
 
-  async start(options?: Partial<SpawnOptions>): Promise<void> {
+  async start(options?: Partial<SpawnOptions> & { debugApi?: { apiUrl: string; token: string } }): Promise<void> {
     try {
       const spawnOptions: SpawnOptions = {
         cwd: this.cwd,
         agent: this.agent,
         ...options,
       };
+
+      // Pass debug API config if provided
+      if (options?.debugApi) {
+        spawnOptions.debugApi = options.debugApi;
+      }
 
       const { pty, pid } = processManager.spawn(spawnOptions);
       this.pty = pty;
@@ -145,6 +162,8 @@ export class Session {
       agentId: this.agentId,
       agentName: this.agentName,
       agentIcon: this.agentIcon,
+      enableDebugApi: this.enableDebugApi,
+      // Don't include token in toInfo() to avoid exposing it to renderer
     };
   }
 

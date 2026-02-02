@@ -25,6 +25,7 @@ import type {
   DebugVariable,
   DebugBreakpoint,
   StackFrame,
+  DAPPreset,
 } from './debug';
 import type {
   GitStatusResult,
@@ -342,6 +343,26 @@ export interface IpcChannels {
   'debug:evaluate': {
     request: { sessionId: string; expression: string; frameId?: number };
     response: { result: string; type?: string; variablesReference?: number; error?: string };
+  };
+
+  // DAP presets
+  'debug:getDAPPresets': {
+    request: void;
+    response: Record<DAPPreset, { name: string; adapterPath: string; installCommand: string }>;
+  };
+
+  // Debug HTTP API management
+  'debug:enableApi': {
+    request: { sessionId: string; workdir: string };
+    response: { success: boolean; apiUrl?: string; token?: string; error?: string };
+  };
+  'debug:disableApi': {
+    request: { sessionId: string; workdir: string };
+    response: { success: boolean; error?: string };
+  };
+  'debug:getApiStatus': {
+    request: void;
+    response: { running: boolean; port?: number; url?: string };
   };
 
   // Git Operations

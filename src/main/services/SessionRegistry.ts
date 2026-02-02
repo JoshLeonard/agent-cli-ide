@@ -2,6 +2,9 @@ import { Session } from '../session/Session';
 import { eventBus, Events } from './EventBus';
 import { gitWorktreeManager } from './GitWorktreeManager';
 import { sessionHookManager } from './SessionHookManager';
+import { debugHttpServer } from './DebugHttpServer';
+import { debugSkillInstaller } from './DebugSkillInstaller';
+import { agentService } from './AgentService';
 import type { SessionConfig, SessionInfo, SessionCreateResult } from '../../shared/types/session';
 
 export class SessionRegistry {
@@ -26,22 +29,64 @@ export class SessionRegistry {
         worktreePath = worktreeResult.path;
       }
 
+      const sessionCwd = worktreePath || config.cwd;
+
+      // Set up debug API if enabled for AI agent sessions
+      let debugApiToken: string | undefined;
+      let debugApiUrl: string | undefined;
+      if (config.enableDebugApi && config.agentId) {
+        const agent = agentService.getAgent(config.agentId);
+        if (agent?.category === 'ai-agent') {
+          try {
+            // Start HTTP server if needed
+            await debugHttpServer.start();
+
+            // Generate token for this session (we'll set session ID after creation)
+            debugApiToken = debugHttpServer.generateToken('pending');
+            debugApiUrl = debugHttpServer.getBaseUrl();
+
+            // Install skill file
+            await debugSkillInstaller.installSkill(sessionCwd);
+          } catch (err) {
+            console.error('[SessionRegistry] Failed to set up debug API:', err);
+            // Continue without debug API
+          }
+        }
+      }
+
       const session = new Session({
         ...config,
         worktreePath,
+        debugApiToken,
       });
+
+      // Update token with actual session ID
+      if (debugApiToken) {
+        debugHttpServer.invalidateToken(debugApiToken);
+        const newToken = debugHttpServer.generateToken(session.id);
+        session.setDebugApiToken(newToken);
+        debugApiToken = newToken;
+      }
 
       this.sessions.set(session.id, session);
 
       // Configure hooks for Claude Code sessions
-      const sessionCwd = worktreePath || config.cwd;
       const hooksConfigured = await sessionHookManager.configureHooks(
         config.agentId,
         session.id,
         sessionCwd
       );
 
-      await session.start();
+      // Start session with debug API env vars if enabled
+      const startOptions: { isRestored?: boolean; debugApi?: { apiUrl: string; token: string } } = {};
+      if (debugApiToken && debugApiUrl) {
+        startOptions.debugApi = {
+          apiUrl: debugApiUrl,
+          token: debugApiToken,
+        };
+      }
+
+      await session.start(startOptions);
 
       const sessionInfo = session.toInfo();
       eventBus.emit(Events.SESSION_CREATED, {
@@ -75,6 +120,12 @@ export class SessionRegistry {
       // Clean up hooks
       const sessionCwd = session.worktreePath || session.cwd;
       await sessionHookManager.cleanupHooks(sessionId, sessionCwd);
+
+      // Clean up debug API if enabled
+      if (session.enableDebugApi) {
+        debugHttpServer.invalidateSessionTokens(sessionId);
+        await debugSkillInstaller.uninstallSkill(sessionCwd);
+      }
 
       // Clean up worktree if isolated session
       if (session.type === 'isolated' && session.worktreePath) {

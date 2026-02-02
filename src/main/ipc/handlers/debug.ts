@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron';
 import { debuggerService } from '../../services/DebuggerService';
+import { debugHttpServer } from '../../services/DebugHttpServer';
+import { debugSkillInstaller } from '../../services/DebugSkillInstaller';
 
 export function registerDebugHandlers(): void {
   // Session management
@@ -74,6 +76,65 @@ export function registerDebugHandlers(): void {
   ipcMain.handle('debug:evaluate', async (_, args) => {
     return debuggerService.evaluate(args.sessionId, args.expression, args.frameId);
   });
+
+  // DAP presets
+  ipcMain.handle('debug:getDAPPresets', async () => {
+    return debuggerService.getDAPPresets();
+  });
+
+  // Debug HTTP API management
+  ipcMain.handle('debug:enableApi', async (_, args) => {
+    try {
+      const { sessionId, workdir } = args;
+
+      // Start HTTP server if not running
+      await debugHttpServer.start();
+
+      // Generate token for this session
+      const token = debugHttpServer.generateToken(sessionId);
+
+      // Install skill file
+      await debugSkillInstaller.installSkill(workdir);
+
+      return {
+        success: true,
+        apiUrl: debugHttpServer.getBaseUrl(),
+        token,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to enable debug API',
+      };
+    }
+  });
+
+  ipcMain.handle('debug:disableApi', async (_, args) => {
+    try {
+      const { sessionId, workdir } = args;
+
+      // Invalidate session tokens
+      debugHttpServer.invalidateSessionTokens(sessionId);
+
+      // Uninstall skill file
+      await debugSkillInstaller.uninstallSkill(workdir);
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to disable debug API',
+      };
+    }
+  });
+
+  ipcMain.handle('debug:getApiStatus', async () => {
+    return {
+      running: debugHttpServer.isServerRunning(),
+      port: debugHttpServer.getPort(),
+      url: debugHttpServer.getBaseUrl(),
+    };
+  });
 }
 
 export function unregisterDebugHandlers(): void {
@@ -83,6 +144,7 @@ export function unregisterDebugHandlers(): void {
     'debug:getScopes', 'debug:getVariables', 'debug:setBreakpoints',
     'debug:removeBreakpoint', 'debug:continue', 'debug:pause',
     'debug:stepOver', 'debug:stepInto', 'debug:stepOut', 'debug:evaluate',
+    'debug:getDAPPresets', 'debug:enableApi', 'debug:disableApi', 'debug:getApiStatus',
   ];
   channels.forEach(channel => ipcMain.removeHandler(channel));
 }

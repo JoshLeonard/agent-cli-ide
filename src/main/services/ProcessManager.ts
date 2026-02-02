@@ -16,6 +16,11 @@ export interface SpawnOptions {
   cols?: number;
   rows?: number;
   isRestored?: boolean;  // Whether this session is being restored from persistence
+  debugApi?: {          // Debug HTTP API configuration
+    apiUrl: string;
+    token: string;
+    debugSessionId?: string;
+  };
 }
 
 export class ProcessManager {
@@ -41,16 +46,28 @@ export class ProcessManager {
     const shell = options.shell || this.getDefaultShell();
     const shellArgs = this.getShellArgs(shell);
 
+    // Build environment variables
+    const env: Record<string, string> = {
+      ...process.env as Record<string, string>,
+      ...options.env,
+      TERM: 'xterm-256color',
+    };
+
+    // Inject debug API env vars if enabled
+    if (options.debugApi) {
+      env.TERMINAL_IDE_DEBUG_API = options.debugApi.apiUrl;
+      env.TERMINAL_IDE_DEBUG_TOKEN = options.debugApi.token;
+      if (options.debugApi.debugSessionId) {
+        env.TERMINAL_IDE_DEBUG_SESSION = options.debugApi.debugSessionId;
+      }
+    }
+
     const ptyProcess = pty.spawn(shell, shellArgs, {
       name: 'xterm-256color',
       cols: options.cols || 80,
       rows: options.rows || 24,
       cwd: options.cwd,
-      env: {
-        ...process.env,
-        ...options.env,
-        TERM: 'xterm-256color',
-      } as Record<string, string>,
+      env,
     });
 
     this.processes.set(ptyProcess.pid, ptyProcess);
