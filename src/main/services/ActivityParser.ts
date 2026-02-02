@@ -1,6 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { ActivityEvent, ActivityType, ActivitySeverity } from '../../shared/types/activity';
 
+/**
+ * Strip ANSI escape sequences from terminal output.
+ * Handles color codes, cursor movement, and other control sequences.
+ */
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+}
+
 // Parsing patterns for various output types
 const PATTERNS = {
   // File operations
@@ -45,6 +54,12 @@ const PATTERNS = {
     { pattern: /\$\s+(.+)/gm },
     { pattern: />\s+(.+)/gm },
   ],
+
+  // Git commits - detect when a commit is made (conservative patterns only)
+  gitCommit: [
+    // [branch abc1234] commit message - the definitive commit confirmation
+    { pattern: /\[[\w\/-]+\s+[\da-f]{7,}\]\s+.+/gi },
+  ],
 };
 
 interface SessionContext {
@@ -73,11 +88,14 @@ export class ActivityParser {
     // Update position
     this.lastParsedPosition.set(sessionId, output.length);
 
+    // Strip ANSI escape sequences for cleaner pattern matching
+    const cleanContent = stripAnsi(newContent);
+
     // Parse file operations
     for (const { pattern, type } of PATTERNS.fileCreated) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(newContent)) !== null) {
+      while ((match = pattern.exec(cleanContent)) !== null) {
         const filePath = match[1];
         if (this.isValidFilePath(filePath)) {
           events.push(this.createEvent(type, 'success', `File created: ${this.getFileName(filePath)}`, context, filePath));
@@ -88,7 +106,7 @@ export class ActivityParser {
     for (const { pattern, type } of PATTERNS.fileModified) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(newContent)) !== null) {
+      while ((match = pattern.exec(cleanContent)) !== null) {
         const filePath = match[1];
         if (this.isValidFilePath(filePath)) {
           events.push(this.createEvent(type, 'info', `File modified: ${this.getFileName(filePath)}`, context, filePath));
@@ -99,7 +117,7 @@ export class ActivityParser {
     for (const { pattern, type } of PATTERNS.fileDeleted) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(newContent)) !== null) {
+      while ((match = pattern.exec(cleanContent)) !== null) {
         const filePath = match[1];
         if (this.isValidFilePath(filePath)) {
           events.push(this.createEvent(type, 'warning', `File deleted: ${this.getFileName(filePath)}`, context, filePath));
@@ -111,7 +129,7 @@ export class ActivityParser {
     for (const { pattern, extract } of PATTERNS.errors) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(newContent)) !== null) {
+      while ((match = pattern.exec(cleanContent)) !== null) {
         const extracted = extract(match);
         const title = extracted.code ? `Error ${extracted.code}` : 'Error';
         events.push(this.createEvent('error', 'error', title, context, undefined, extracted.message));
@@ -122,7 +140,7 @@ export class ActivityParser {
     for (const { pattern, extract } of PATTERNS.warnings) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(newContent)) !== null) {
+      while ((match = pattern.exec(cleanContent)) !== null) {
         const extracted = extract(match);
         events.push(this.createEvent('warning', 'warning', 'Warning', context, undefined, extracted.message));
       }
@@ -132,10 +150,23 @@ export class ActivityParser {
     for (const { pattern } of PATTERNS.taskCompleted) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(newContent)) !== null) {
+      while ((match = pattern.exec(cleanContent)) !== null) {
         const task = match[1] || 'Task completed';
         events.push(this.createEvent('task_completed', 'success', task.slice(0, 100), context));
       }
+    }
+
+    // Parse git commits - only emit one event per commit
+    let hasCommit = false;
+    for (const { pattern } of PATTERNS.gitCommit) {
+      pattern.lastIndex = 0;
+      if (pattern.test(cleanContent)) {
+        hasCommit = true;
+        break;
+      }
+    }
+    if (hasCommit) {
+      events.push(this.createEvent('git_commit', 'success', 'Changes committed', context));
     }
 
     // Deduplicate events
