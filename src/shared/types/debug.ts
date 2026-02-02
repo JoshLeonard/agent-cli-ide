@@ -94,12 +94,43 @@ export interface DebugSessionInfo {
   exceptions: DebugException[];
 }
 
+// DAP-specific launch/attach configuration
+export interface DAPConfig {
+  /** Path to debug adapter executable (e.g., 'netcoredbg', 'python') */
+  adapterPath: string;
+  /** Arguments for the adapter (e.g., ['--interpreter=vscode']) */
+  adapterArgs?: string[];
+  /** Working directory for debugging */
+  cwd?: string;
+  /** Program to debug (for launch mode) */
+  program?: string;
+  /** Program arguments */
+  args?: string[];
+  /** Environment variables */
+  env?: Record<string, string>;
+  /** Attach to existing process by PID */
+  attachPid?: number;
+  /** Attach to debugger listening on port */
+  attachPort?: number;
+  /** Host for network attach */
+  attachHost?: string;
+  /** Stop on entry point */
+  stopOnEntry?: boolean;
+}
+
+// Preset configurations for common debug adapters
+export type DAPPreset = 'csharp' | 'python' | 'go' | 'rust' | 'cpp' | 'custom';
+
 // Config for attaching debugger
 export interface DebugAttachConfig {
   protocol: DebugProtocol;
   host?: string;
   port?: number;
   language?: string;
+  /** DAP-specific configuration (required when protocol is 'dap') */
+  dap?: DAPConfig;
+  /** Use a preset DAP configuration */
+  dapPreset?: DAPPreset;
 }
 
 // Event filter for queries

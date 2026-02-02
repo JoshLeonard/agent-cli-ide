@@ -11,25 +11,89 @@ import type {
   StackFrame,
   DebugEventFilter,
   DebugProtocol,
+  DAPConfig,
+  DAPPreset,
 } from '../../shared/types/debug';
 import type { DebugAdapter } from './debugAdapters/DebugAdapter';
+import type { DAPLaunchConfig } from './debugAdapters/DAPAdapter';
 
 interface DebugSession {
   info: DebugSessionInfo;
   adapter: DebugAdapter | null;
 }
 
+// DAP preset configurations for common debug adapters
+const DAP_PRESETS: Record<DAPPreset, Partial<DAPLaunchConfig>> = {
+  csharp: {
+    adapterPath: 'netcoredbg',
+    adapterArgs: ['--interpreter=vscode'],
+  },
+  python: {
+    adapterPath: 'python',
+    adapterArgs: ['-m', 'debugpy.adapter'],
+  },
+  go: {
+    adapterPath: 'dlv',
+    adapterArgs: ['dap'],
+  },
+  rust: {
+    adapterPath: 'codelldb',
+    adapterArgs: [],
+  },
+  cpp: {
+    adapterPath: 'codelldb',
+    adapterArgs: [],
+  },
+  custom: {},
+};
+
 class DebuggerService {
   private sessions: Map<string, DebugSession> = new Map();
   private outputSubscription: { unsubscribe: () => void } | null = null;
 
   private debuggerDetectionPatterns = [
+    // CDP - Node.js
     {
       pattern: /Debugger listening on ws:\/\/([^:]+):(\d+)/,
       protocol: 'cdp' as DebugProtocol,
-      extractConfig: (match: RegExpMatchArray) => ({
+      extractConfig: (match: RegExpMatchArray): Partial<DebugAttachConfig> => ({
         host: match[1],
         port: parseInt(match[2]),
+      }),
+    },
+    // DAP - Python debugpy
+    {
+      pattern: /debugpy\.server\s*--?\s*listening on (\d+\.\d+\.\d+\.\d+):(\d+)/i,
+      protocol: 'dap' as DebugProtocol,
+      extractConfig: (match: RegExpMatchArray): Partial<DebugAttachConfig> => ({
+        dap: {
+          adapterPath: 'python',
+          adapterArgs: ['-m', 'debugpy.adapter'],
+          attachPort: parseInt(match[2]),
+          attachHost: match[1],
+        },
+      }),
+    },
+    // DAP - Go delve
+    {
+      pattern: /API server listening at:\s*(\d+\.\d+\.\d+\.\d+):(\d+)/i,
+      protocol: 'dap' as DebugProtocol,
+      extractConfig: (match: RegExpMatchArray): Partial<DebugAttachConfig> => ({
+        dap: {
+          adapterPath: 'dlv',
+          adapterArgs: ['dap', '--listen', `${match[1]}:${match[2]}`],
+        },
+      }),
+    },
+    // DAP - .NET Core debugger
+    {
+      pattern: /Waiting for debugger to attach\.\.\./i,
+      protocol: 'dap' as DebugProtocol,
+      extractConfig: (): Partial<DebugAttachConfig> => ({
+        dap: {
+          adapterPath: 'netcoredbg',
+          adapterArgs: ['--interpreter=vscode'],
+        },
       }),
     },
   ];
@@ -80,6 +144,32 @@ class DebuggerService {
         // Import CDPAdapter dynamically to avoid circular dependencies
         const { CDPAdapter } = await import('./debugAdapters/CDPAdapter');
         adapter = new CDPAdapter();
+      } else if (config.protocol === 'dap') {
+        // Build DAP launch config from provided config or preset
+        let dapConfig: DAPLaunchConfig;
+
+        if (config.dap) {
+          // Use provided DAP config directly
+          dapConfig = config.dap as DAPLaunchConfig;
+        } else if (config.dapPreset && config.dapPreset !== 'custom') {
+          // Use preset configuration
+          const preset = DAP_PRESETS[config.dapPreset];
+          dapConfig = {
+            adapterPath: preset.adapterPath || '',
+            adapterArgs: preset.adapterArgs,
+          };
+        } else {
+          return { success: false, error: 'DAP config or preset required for DAP protocol' };
+        }
+
+        if (!dapConfig.adapterPath) {
+          return { success: false, error: 'DAP adapter path is required' };
+        }
+
+        const { DAPAdapter } = await import('./debugAdapters/DAPAdapter');
+        const dapAdapter = new DAPAdapter();
+        dapAdapter.setLaunchConfig(dapConfig);
+        adapter = dapAdapter;
       } else {
         return { success: false, error: `Protocol ${config.protocol} not yet implemented` };
       }
@@ -325,6 +415,42 @@ class DebuggerService {
     if (!session?.adapter) return { result: '', error: 'No adapter' };
     return session.adapter.evaluate(expression, frameId);
   }
+
+  getDAPPresets(): Record<DAPPreset, { name: string; adapterPath: string; installCommand: string }> {
+    return {
+      csharp: {
+        name: 'C# / .NET',
+        adapterPath: 'netcoredbg',
+        installCommand: 'dotnet tool install -g netcoredbg',
+      },
+      python: {
+        name: 'Python',
+        adapterPath: 'python -m debugpy.adapter',
+        installCommand: 'pip install debugpy',
+      },
+      go: {
+        name: 'Go',
+        adapterPath: 'dlv',
+        installCommand: 'go install github.com/go-delve/delve/cmd/dlv@latest',
+      },
+      rust: {
+        name: 'Rust',
+        adapterPath: 'codelldb',
+        installCommand: 'Download from https://github.com/vadimcn/codelldb/releases',
+      },
+      cpp: {
+        name: 'C/C++',
+        adapterPath: 'codelldb',
+        installCommand: 'Download from https://github.com/vadimcn/codelldb/releases',
+      },
+      custom: {
+        name: 'Custom',
+        adapterPath: '',
+        installCommand: '',
+      },
+    };
+  }
 }
 
 export const debuggerService = new DebuggerService();
+export { DAP_PRESETS };

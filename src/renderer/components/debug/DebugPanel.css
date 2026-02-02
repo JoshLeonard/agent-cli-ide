@@ -101,6 +101,28 @@
   border-color: var(--accent-color);
 }
 
+.attach-form-select {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.attach-form-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.attach-form-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .attach-form-btn {
   padding: 4px 10px;
   border: none;

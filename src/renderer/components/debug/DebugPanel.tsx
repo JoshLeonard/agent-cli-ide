@@ -1,8 +1,14 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { useDebuggerStore } from '../../stores/debuggerStore';
 import { useLayoutStore } from '../../stores/layoutStore';
-import type { DebugConsoleMessage, DebugSessionInfo } from '../../../shared/types/debug';
+import type { DebugConsoleMessage, DebugSessionInfo, DebugProtocol, DAPPreset } from '../../../shared/types/debug';
 import './DebugPanel.css';
+
+interface DAPPresetInfo {
+  name: string;
+  adapterPath: string;
+  installCommand: string;
+}
 
 interface DebugPanelProps {
   onSelectSession?: (sessionId: string) => void;
@@ -24,15 +30,41 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ onSelectSession }) => {
 
   // Attach form state
   const [showAttachForm, setShowAttachForm] = useState(false);
+  const [attachProtocol, setAttachProtocol] = useState<DebugProtocol>('cdp');
   const [attachPort, setAttachPort] = useState('9229');
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
+
+  // DAP-specific state
+  const [dapPreset, setDapPreset] = useState<DAPPreset>('python');
+  const [dapPresets, setDapPresets] = useState<Record<DAPPreset, DAPPresetInfo> | null>(null);
+  const [dapAdapterPath, setDapAdapterPath] = useState('');
+  const [dapAdapterArgs, setDapAdapterArgs] = useState('');
+  const [dapProgram, setDapProgram] = useState('');
+  const [dapArgs, setDapArgs] = useState('');
+  const [dapCwd, setDapCwd] = useState('');
+  const [dapAttachMode, setDapAttachMode] = useState(false);
 
   // Initialize subscriptions on mount
   useEffect(() => {
     const unsubscribe = initializeSubscriptions();
     return unsubscribe;
   }, [initializeSubscriptions]);
+
+  // Fetch DAP presets on mount
+  useEffect(() => {
+    window.terminalIDE.debug.getDAPPresets().then(setDapPresets).catch(console.error);
+  }, []);
+
+  // Update adapter path when preset changes
+  useEffect(() => {
+    if (dapPresets && dapPreset !== 'custom') {
+      const preset = dapPresets[dapPreset];
+      if (preset) {
+        setDapAdapterPath(preset.adapterPath);
+      }
+    }
+  }, [dapPreset, dapPresets]);
 
   const sessionList = Array.from(sessions.values());
   const filteredMessages = getFilteredMessages();
@@ -140,34 +172,72 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ onSelectSession }) => {
       return;
     }
 
-    const port = parseInt(attachPort);
-    if (isNaN(port) || port < 1 || port > 65535) {
-      setAttachError('Invalid port number');
-      return;
-    }
-
     setAttaching(true);
     setAttachError(null);
 
     try {
-      const result = await window.terminalIDE.debug.attach(currentTerminalSessionId, {
-        protocol: 'cdp',
-        host: '127.0.0.1',
-        port,
-      });
+      if (attachProtocol === 'cdp') {
+        const port = parseInt(attachPort);
+        if (isNaN(port) || port < 1 || port > 65535) {
+          setAttachError('Invalid port number');
+          setAttaching(false);
+          return;
+        }
 
-      if (result.success && result.debugSessionId) {
-        setShowAttachForm(false);
-        setAttachPort('9229');
-      } else {
-        setAttachError(result.error || 'Failed to attach');
+        const result = await window.terminalIDE.debug.attach(currentTerminalSessionId, {
+          protocol: 'cdp',
+          host: '127.0.0.1',
+          port,
+        });
+
+        if (result.success && result.debugSessionId) {
+          setShowAttachForm(false);
+          setAttachPort('9229');
+        } else {
+          setAttachError(result.error || 'Failed to attach');
+        }
+      } else if (attachProtocol === 'dap') {
+        // Validate DAP config
+        if (!dapAdapterPath.trim()) {
+          setAttachError('Adapter path is required');
+          setAttaching(false);
+          return;
+        }
+
+        if (!dapAttachMode && !dapProgram.trim()) {
+          setAttachError('Program path is required for launch mode');
+          setAttaching(false);
+          return;
+        }
+
+        const result = await window.terminalIDE.debug.attach(currentTerminalSessionId, {
+          protocol: 'dap',
+          dap: {
+            adapterPath: dapAdapterPath.trim(),
+            adapterArgs: dapAdapterArgs.trim() ? dapAdapterArgs.split(/\s+/) : undefined,
+            program: dapProgram.trim() || undefined,
+            args: dapArgs.trim() ? dapArgs.split(/\s+/) : undefined,
+            cwd: dapCwd.trim() || undefined,
+            attachPort: dapAttachMode && attachPort ? parseInt(attachPort) : undefined,
+          },
+        });
+
+        if (result.success && result.debugSessionId) {
+          setShowAttachForm(false);
+          // Reset form
+          setDapProgram('');
+          setDapArgs('');
+          setDapCwd('');
+        } else {
+          setAttachError(result.error || 'Failed to attach');
+        }
       }
     } catch (err) {
       setAttachError(err instanceof Error ? err.message : 'Failed to attach');
     } finally {
       setAttaching(false);
     }
-  }, [currentTerminalSessionId, attachPort]);
+  }, [currentTerminalSessionId, attachProtocol, attachPort, dapAdapterPath, dapAdapterArgs, dapProgram, dapArgs, dapCwd, dapAttachMode]);
 
   return (
     <div className="debug-panel">
@@ -188,28 +258,153 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ onSelectSession }) => {
         {/* Attach Form */}
         {showAttachForm && (
           <div className="debug-attach-form">
+            {/* Protocol Selection */}
             <div className="attach-form-row">
-              <label>Port:</label>
-              <input
-                type="text"
-                value={attachPort}
-                onChange={(e) => setAttachPort(e.target.value)}
-                placeholder="9229"
+              <label>Protocol:</label>
+              <select
+                className="attach-form-select"
+                value={attachProtocol}
+                onChange={(e) => setAttachProtocol(e.target.value as DebugProtocol)}
                 disabled={attaching}
-              />
+              >
+                <option value="cdp">CDP (Node.js/Chrome)</option>
+                <option value="dap">DAP (Python/Go/C#/Rust)</option>
+              </select>
+            </div>
+
+            {attachProtocol === 'cdp' ? (
+              /* CDP Form */
+              <>
+                <div className="attach-form-row">
+                  <label>Port:</label>
+                  <input
+                    type="text"
+                    value={attachPort}
+                    onChange={(e) => setAttachPort(e.target.value)}
+                    placeholder="9229"
+                    disabled={attaching}
+                  />
+                </div>
+                <div className="attach-form-hint">
+                  Run: node --inspect-brk yourscript.js
+                </div>
+              </>
+            ) : (
+              /* DAP Form */
+              <>
+                <div className="attach-form-row">
+                  <label>Language:</label>
+                  <select
+                    className="attach-form-select"
+                    value={dapPreset}
+                    onChange={(e) => setDapPreset(e.target.value as DAPPreset)}
+                    disabled={attaching}
+                  >
+                    {dapPresets && Object.entries(dapPresets).map(([key, preset]) => (
+                      <option key={key} value={key}>{preset.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="attach-form-row">
+                  <label>Adapter:</label>
+                  <input
+                    type="text"
+                    value={dapAdapterPath}
+                    onChange={(e) => setDapAdapterPath(e.target.value)}
+                    placeholder="e.g., python, dlv, netcoredbg"
+                    disabled={attaching || dapPreset !== 'custom'}
+                  />
+                </div>
+                {dapPreset === 'custom' && (
+                  <div className="attach-form-row">
+                    <label>Args:</label>
+                    <input
+                      type="text"
+                      value={dapAdapterArgs}
+                      onChange={(e) => setDapAdapterArgs(e.target.value)}
+                      placeholder="Adapter arguments"
+                      disabled={attaching}
+                    />
+                  </div>
+                )}
+                <div className="attach-form-row">
+                  <label>Mode:</label>
+                  <select
+                    className="attach-form-select"
+                    value={dapAttachMode ? 'attach' : 'launch'}
+                    onChange={(e) => setDapAttachMode(e.target.value === 'attach')}
+                    disabled={attaching}
+                  >
+                    <option value="launch">Launch</option>
+                    <option value="attach">Attach</option>
+                  </select>
+                </div>
+                {!dapAttachMode ? (
+                  <>
+                    <div className="attach-form-row">
+                      <label>Program:</label>
+                      <input
+                        type="text"
+                        value={dapProgram}
+                        onChange={(e) => setDapProgram(e.target.value)}
+                        placeholder="Path to program"
+                        disabled={attaching}
+                      />
+                    </div>
+                    <div className="attach-form-row">
+                      <label>Args:</label>
+                      <input
+                        type="text"
+                        value={dapArgs}
+                        onChange={(e) => setDapArgs(e.target.value)}
+                        placeholder="Program arguments"
+                        disabled={attaching}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="attach-form-row">
+                    <label>Port:</label>
+                    <input
+                      type="text"
+                      value={attachPort}
+                      onChange={(e) => setAttachPort(e.target.value)}
+                      placeholder="Debug port"
+                      disabled={attaching}
+                    />
+                  </div>
+                )}
+                <div className="attach-form-row">
+                  <label>CWD:</label>
+                  <input
+                    type="text"
+                    value={dapCwd}
+                    onChange={(e) => setDapCwd(e.target.value)}
+                    placeholder="Working directory (optional)"
+                    disabled={attaching}
+                  />
+                </div>
+                {dapPresets && dapPreset !== 'custom' && dapPresets[dapPreset]?.installCommand && (
+                  <div className="attach-form-hint">
+                    Install: {dapPresets[dapPreset].installCommand}
+                  </div>
+                )}
+              </>
+            )}
+
+            {attachError && (
+              <div className="attach-form-error">{attachError}</div>
+            )}
+
+            <div className="attach-form-row" style={{ marginTop: '8px' }}>
               <button
                 className="attach-form-btn"
                 onClick={handleAttach}
                 disabled={attaching}
+                style={{ marginLeft: 'auto' }}
               >
-                {attaching ? '...' : 'Attach'}
+                {attaching ? '...' : (dapAttachMode ? 'Attach' : 'Launch')}
               </button>
-            </div>
-            {attachError && (
-              <div className="attach-form-error">{attachError}</div>
-            )}
-            <div className="attach-form-hint">
-              Run: node --inspect-brk yourscript.js
             </div>
           </div>
         )}
