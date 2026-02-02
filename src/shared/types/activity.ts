@@ -5,7 +5,8 @@ export type ActivityType =
   | 'error'
   | 'warning'
   | 'task_completed'
-  | 'command_executed';
+  | 'command_executed'
+  | 'git_commit';
 
 export type ActivitySeverity = 'info' | 'warning' | 'error' | 'success';
 

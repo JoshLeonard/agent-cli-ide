@@ -2,6 +2,7 @@
   "name": "terminal-ide",
   "version": "0.1.0",
   "description": "Terminal-First IDE Orchestrator with Git worktree isolation",
+  "author": "JoshuaLeonard",
   "main": "dist/main/main/index.js",
   "scripts": {
     "dev": "vite",
@@ -11,7 +12,36 @@
     "build:renderer": "vite build",
     "build:all": "npm run build:main && npm run build:preload && npm run build:renderer",
     "start": "npm run build:all && electron .",
-    "postinstall": "electron-rebuild -f -w node-pty"
+    "postinstall": "electron-rebuild -f -w node-pty",
+    "pack": "npm run build:all && electron-builder --dir",
+    "dist": "npm run build:all && electron-builder"
+  },
+  "build": {
+    "appId": "com.joshuaLeonard.terminal-ide",
+    "productName": "Terminal IDE",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
@@ -31,6 +61,7 @@
     "@types/uuid": "^9.0.0",
     "@vitejs/plugin-react": "^4.2.0",
     "electron": "^28.3.3",
+    "electron-builder": "^26.7.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.3.0",
