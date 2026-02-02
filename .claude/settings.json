@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" working 73dcc196-240c-431c-993b-35632dc593df"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" working 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
           }
         ]
       },
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" working 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" working 73dcc196-240c-431c-993b-35632dc593df"
           }
         ]
       }
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 73dcc196-240c-431c-993b-35632dc593df"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
           }
         ]
       },
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 73dcc196-240c-431c-993b-35632dc593df"
           }
         ]
       }
@@ -127,7 +127,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" waiting 73dcc196-240c-431c-993b-35632dc593df"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" waiting 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
           }
         ]
       },
@@ -136,7 +136,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" waiting 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" waiting 73dcc196-240c-431c-993b-35632dc593df"
           }
         ]
       }
@@ -174,7 +174,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 73dcc196-240c-431c-993b-35632dc593df"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
           }
         ]
       },
@@ -183,7 +183,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 11c9d478-84d4-4eb3-9a12-f1f4d6543b32"
+            "command": "node \"C:/Users/joshu/AppData/Roaming/terminal-ide/hooks/hook-state.js\" idle 73dcc196-240c-431c-993b-35632dc593df"
           }
         ]
       }

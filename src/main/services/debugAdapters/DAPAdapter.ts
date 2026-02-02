@@ -362,7 +362,7 @@ export class DAPAdapter implements DebugAdapter {
         { threadId: this.currentThreadId }
       );
 
-      return (response.stackFrames || []).map((frame) => ({
+      return (response.stackFrames || []).map((frame: DebugProtocol.StackFrame) => ({
         id: frame.id,
         name: frame.name,
         source: frame.source?.path || frame.source?.name,
@@ -382,7 +382,7 @@ export class DAPAdapter implements DebugAdapter {
         { frameId }
       );
 
-      return (response.scopes || []).map((scope) => ({
+      return (response.scopes || []).map((scope: DebugProtocol.Scope) => ({
         name: scope.name,
         variablesReference: scope.variablesReference,
       }));
@@ -399,7 +399,7 @@ export class DAPAdapter implements DebugAdapter {
         { variablesReference }
       );
 
-      return (response.variables || []).map((v) => ({
+      return (response.variables || []).map((v: DebugProtocol.Variable) => ({
         name: v.name,
         value: v.value,
         type: v.type,
@@ -427,7 +427,7 @@ export class DAPAdapter implements DebugAdapter {
         }
       );
 
-      return (response.breakpoints || []).map((bp, i) => ({
+      return (response.breakpoints || []).map((bp: DebugProtocol.Breakpoint, i: number) => ({
         id: bp.id?.toString() || `${source}:${breakpoints[i]?.line || 0}`,
         verified: bp.verified,
         source,

@@ -20,7 +20,7 @@ const BUILT_IN_AGENTS: AgentConfig[] = [
     id: 'cursor',
     name: 'Cursor CLI',
     description: 'AI-powered code editor CLI',
-    command: 'cursor',
+    command: 'agent',
     icon: '⚡',
     category: 'ai-agent',
   },
