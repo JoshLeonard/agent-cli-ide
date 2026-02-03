@@ -43,8 +43,9 @@ async function canRestoreSession(session: SessionInfo): Promise<boolean> {
 
 /**
  * Restore sessions for a specific project
+ * Exported for use in app startup (index.ts)
  */
-async function restoreProjectSessions(projectPath: string): Promise<number> {
+export async function restoreProjectSessions(projectPath: string): Promise<number> {
   const settings = settingsService.get();
   if (!settings.restoreSessionsOnStartup) {
     return 0;
