@@ -54,7 +54,8 @@
       "Bash(git symbolic-ref:*)",
       "Bash(git status:*)",
       "Bash(timeout:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx playwright:*)"
     ]
   }
 }

@@ -69,6 +69,39 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
 
+    // Prevent native paste event (we handle it manually via Ctrl+V)
+    const handlePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+    };
+    containerRef.current.addEventListener('paste', handlePaste);
+
+    // Handle Ctrl+C (copy) and Ctrl+V (paste)
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.type !== 'keydown') return true;
+
+      // Ctrl+C: Copy if selection exists, else send SIGINT
+      if (event.ctrlKey && event.key === 'c') {
+        const selection = terminal.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+          return false; // Handled - don't send SIGINT
+        }
+        return true; // No selection - let SIGINT through
+      }
+
+      // Ctrl+V: Paste from OS clipboard
+      if (event.ctrlKey && event.key === 'v') {
+        window.terminalIDE.clipboard.readOS().then((content) => {
+          if (content) {
+            window.terminalIDE.session.write(sessionIdRef.current, content);
+          }
+        });
+        return false; // Handled
+      }
+
+      return true; // Let all other keys through
+    });
+
     // Send initial size to backend
     const { cols, rows } = terminal;
     window.terminalIDE.session.resize(sessionId, cols, rows);
@@ -83,7 +116,9 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
       window.terminalIDE.session.resize(sessionIdRef.current, cols, rows);
     });
 
+    const container = containerRef.current;
     return () => {
+      container?.removeEventListener('paste', handlePaste);
       dataDisposable.dispose();
       resizeDisposable.dispose();
       terminal.dispose();
