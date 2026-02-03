@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { registerIpcHandlers, unregisterIpcHandlers } from './ipc/handlers';
+import { restoreProjectSessions } from './ipc/handlers/project';
 import { sessionRegistry } from './services/SessionRegistry';
 import { gitWorktreeManager } from './services/GitWorktreeManager';
 import { processManager } from './services/ProcessManager';
@@ -57,6 +58,9 @@ app.whenReady().then(async () => {
   const restoredProject = await projectService.restoreProject();
   if (restoredProject) {
     console.log(`Restored project: ${restoredProject.path}`);
+    // Restore sessions for the project
+    const sessionCount = await restoreProjectSessions(restoredProject.path);
+    console.log(`Restored ${sessionCount} sessions`);
   }
 
   // Retry any pending worktree deletions from previous sessions
