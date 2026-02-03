@@ -48,7 +48,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [mergeBranches, setMergeBranches] = useState<BranchInfo[]>([]);
 
-  const { setActivePanel, clearPanelSession, sessions } = useLayoutStore();
+  const { setActivePanel, clearPanelSession, sessions, isRestoring } = useLayoutStore();
   const { openQuickSend } = useMessagingStore();
   const { settings } = useSettingsStore();
   const { showToast } = useToastStore();
@@ -231,6 +231,11 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
             isActive={isActive}
             onFocus={handlePanelClick}
           />
+        ) : isRestoring ? (
+          <div className="terminal-panel-empty terminal-panel-restoring">
+            <div className="loading-spinner" />
+            <span>Restoring sessions...</span>
+          </div>
         ) : (
           <div className="terminal-panel-empty">
             <button onClick={() => onCreateSession(panel.id)}>Create Session</button>
