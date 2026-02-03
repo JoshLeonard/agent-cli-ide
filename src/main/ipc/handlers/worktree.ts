@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { gitWorktreeManager } from '../../services/GitWorktreeManager';
 import { persistenceService } from '../../services/PersistenceService';
 import { sessionRegistry } from '../../services/SessionRegistry';
+import { projectService } from '../../services/ProjectService';
 
 export function registerWorktreeHandlers(): void {
   ipcMain.handle('worktree:list', async (_event, { repoPath }: { repoPath: string }) => {
@@ -27,11 +28,16 @@ export function registerWorktreeHandlers(): void {
   });
 
   ipcMain.handle('worktree:getAgentPrefs', async () => {
+    const currentProject = projectService.getCurrentProject();
+    if (currentProject) {
+      return persistenceService.getWorktreeAgentPrefsForProject(currentProject.path);
+    }
     return persistenceService.getWorktreeAgentPrefs();
   });
 
   ipcMain.handle('worktree:setAgentPref', async (_event, { worktreePath, agentId }: { worktreePath: string; agentId: string }) => {
-    await persistenceService.setWorktreeAgentPref(worktreePath, agentId);
+    const currentProject = projectService.getCurrentProject();
+    await persistenceService.setWorktreeAgentPref(worktreePath, agentId, currentProject?.path);
     return { success: true };
   });
 }

@@ -65,13 +65,24 @@ export interface RecentProject {
   lastOpened: number;
 }
 
-export interface PersistedState {
+export interface ProjectState {
   sessions: SessionInfo[];
   layout: PersistedLayoutState;
-  lastSaved: number;
-  projectPath?: string;
-  recentProjects?: RecentProject[];
   worktreeAgentPrefs?: Record<string, string>; // worktreePath → agentId
+}
+
+export interface PersistedState {
+  // Legacy flat fields (for backward compatibility during migration)
+  sessions?: SessionInfo[];
+  layout?: PersistedLayoutState;
+  worktreeAgentPrefs?: Record<string, string>;
+
+  // New per-project state
+  projectStates?: Record<string, ProjectState>; // keyed by project path
+
+  lastSaved: number;
+  projectPath?: string; // Current/last opened project path
+  recentProjects?: RecentProject[];
 }
 
 // Request/Response channels (invoke/handle)

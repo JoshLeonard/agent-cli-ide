@@ -4,7 +4,7 @@ import { app } from 'electron';
 import type { SessionInfo } from '../../shared/types/session';
 import type { PersistedLayoutState, GridLayoutState, GridConfig, TerminalPanel } from '../../shared/types/layout';
 import { isGridLayoutState } from '../../shared/types/layout';
-import type { PersistedState, RecentProject } from '../../shared/types/ipc';
+import type { PersistedState, RecentProject, ProjectState } from '../../shared/types/ipc';
 
 const MAX_RECENT_PROJECTS = 10;
 
@@ -139,32 +139,149 @@ export class PersistenceService {
     return state?.worktreeAgentPrefs || {};
   }
 
-  async setWorktreeAgentPref(worktreePath: string, agentId: string): Promise<void> {
+  async setWorktreeAgentPref(worktreePath: string, agentId: string, projectPath?: string): Promise<void> {
     const existing = await this.load();
-    const defaultLayout: GridLayoutState = {
+
+    // If we have a project path, save to project-specific state
+    if (projectPath) {
+      const projectStates = existing?.projectStates || {};
+      const projectState = projectStates[projectPath] || this.createDefaultProjectState();
+      projectState.worktreeAgentPrefs = projectState.worktreeAgentPrefs || {};
+      projectState.worktreeAgentPrefs[worktreePath] = agentId;
+      projectStates[projectPath] = projectState;
+
+      await this.saveRaw({
+        ...existing,
+        projectStates,
+        lastSaved: Date.now(),
+      });
+    } else {
+      // Legacy: save to global state
+      const defaultLayout: GridLayoutState = {
+        version: 3,
+        config: DEFAULT_GRID_CONFIG,
+        panels: this.createDefaultPanels(DEFAULT_GRID_CONFIG),
+      };
+
+      const worktreeAgentPrefs = existing?.worktreeAgentPrefs || {};
+      worktreeAgentPrefs[worktreePath] = agentId;
+
+      const state: PersistedState = {
+        sessions: existing?.sessions || [],
+        layout: existing?.layout || defaultLayout,
+        lastSaved: Date.now(),
+        projectPath: existing?.projectPath,
+        recentProjects: existing?.recentProjects,
+        worktreeAgentPrefs,
+        projectStates: existing?.projectStates,
+      };
+
+      await this.saveRaw(state);
+    }
+  }
+
+  // ==================== Per-Project State Methods ====================
+
+  /**
+   * Save sessions and layout for a specific project
+   */
+  async saveForProject(
+    projectPath: string,
+    sessions: SessionInfo[],
+    layout: PersistedLayoutState,
+    worktreeAgentPrefs?: Record<string, string>
+  ): Promise<void> {
+    const existing = await this.load();
+    const projectStates = existing?.projectStates || {};
+
+    const projectState: ProjectState = {
+      sessions: sessions.filter((s) => s.status === 'running' || s.status === 'initializing'),
+      layout,
+      worktreeAgentPrefs,
+    };
+
+    projectStates[projectPath] = projectState;
+
+    const state: PersistedState = {
+      projectStates,
+      lastSaved: Date.now(),
+      projectPath,
+      recentProjects: existing?.recentProjects,
+    };
+
+    await this.saveRaw(state);
+  }
+
+  /**
+   * Load sessions and layout for a specific project
+   */
+  async loadForProject(projectPath: string): Promise<ProjectState | null> {
+    const state = await this.load();
+    if (!state) return null;
+
+    // Check for project-specific state
+    if (state.projectStates?.[projectPath]) {
+      return state.projectStates[projectPath];
+    }
+
+    // Migration: if we have legacy global state and this was the last project,
+    // migrate it to project-specific state
+    if (state.projectPath === projectPath && state.sessions && state.sessions.length > 0) {
+      const projectState: ProjectState = {
+        sessions: state.sessions,
+        layout: state.layout || this.createDefaultLayout(),
+        worktreeAgentPrefs: state.worktreeAgentPrefs,
+      };
+
+      // Save the migrated state
+      await this.saveForProject(projectPath, projectState.sessions, projectState.layout, projectState.worktreeAgentPrefs);
+
+      return projectState;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get worktree agent preferences for a specific project
+   */
+  async getWorktreeAgentPrefsForProject(projectPath: string): Promise<Record<string, string>> {
+    const projectState = await this.loadForProject(projectPath);
+    return projectState?.worktreeAgentPrefs || {};
+  }
+
+  /**
+   * Create a default project state
+   */
+  private createDefaultProjectState(): ProjectState {
+    return {
+      sessions: [],
+      layout: this.createDefaultLayout(),
+      worktreeAgentPrefs: {},
+    };
+  }
+
+  /**
+   * Create a default layout
+   */
+  private createDefaultLayout(): GridLayoutState {
+    return {
       version: 3,
       config: DEFAULT_GRID_CONFIG,
       panels: this.createDefaultPanels(DEFAULT_GRID_CONFIG),
     };
+  }
 
-    const worktreeAgentPrefs = existing?.worktreeAgentPrefs || {};
-    worktreeAgentPrefs[worktreePath] = agentId;
-
-    const state: PersistedState = {
-      sessions: existing?.sessions || [],
-      layout: existing?.layout || defaultLayout,
-      lastSaved: Date.now(),
-      projectPath: existing?.projectPath,
-      recentProjects: existing?.recentProjects,
-      worktreeAgentPrefs,
-    };
-
+  /**
+   * Save raw state to file
+   */
+  private async saveRaw(state: PersistedState): Promise<void> {
     try {
       const dir = path.dirname(this.filePath);
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(this.filePath, JSON.stringify(state, null, 2), 'utf-8');
     } catch (error) {
-      console.error('Failed to save worktree agent preference:', error);
+      console.error('Failed to save state:', error);
     }
   }
 

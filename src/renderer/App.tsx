@@ -36,7 +36,7 @@ const App: React.FC = () => {
     targetPanelId: string;
   } | null>(null);
 
-  const currentProject = useProjectStore((state) => state.currentProject);
+  const { currentProject, setProject } = useProjectStore();
 
   const { openQuickSend } = useMessagingStore();
 
@@ -56,6 +56,8 @@ const App: React.FC = () => {
     setWorktreeAgent,
     findPanelByWorktreePath,
     moveSessionToPanel,
+    setLayout,
+    loadWorktreeAgentPrefsFromBackend,
   } = useLayoutStore();
 
   // Initialize hooks for session sync, IPC subscriptions, and layout persistence
@@ -204,7 +206,16 @@ const App: React.FC = () => {
   const handleOpenProject = async () => {
     const path = await window.terminalIDE.dialog.selectDirectory();
     if (path) {
-      await window.terminalIDE.project.open(path);
+      const result = await window.terminalIDE.project.open(path);
+      if (result.success && result.project) {
+        setProject(result.project);
+        // Restore layout and preferences for the newly opened project
+        await loadWorktreeAgentPrefsFromBackend();
+        const state = await window.terminalIDE.persistence.restore();
+        if (state?.layout) {
+          setLayout(state.layout);
+        }
+      }
     }
   };
 

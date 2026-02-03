@@ -117,6 +117,7 @@ input:focus, select:focus {
   align-items: center;
   justify-content: center;
   background: var(--bg-primary);
+  -webkit-app-region: drag;
 }
 
 .welcome-content {
@@ -140,6 +141,7 @@ input:focus, select:focus {
   padding: 12px 32px;
   font-size: 14px;
   font-weight: 500;
+  -webkit-app-region: no-drag;
 }
 
 .recent-folders {
@@ -169,6 +171,7 @@ input:focus, select:focus {
   text-align: left;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
+  -webkit-app-region: no-drag;
 }
 
 .recent-folder-item:hover {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import { useFileReviewStore } from '../../stores/fileReviewStore';
 import { useLayoutStore } from '../../stores/layoutStore';
@@ -8,6 +8,8 @@ import './FileReviewModal.css';
 export const FileReviewModal: React.FC = () => {
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(200);
+  const isResizing = useRef(false);
 
   const {
     isModalOpen,
@@ -166,6 +168,40 @@ export const FileReviewModal: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Sidebar resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleResizeMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const modalElement = document.querySelector('.file-review-modal');
+      if (!modalElement) return;
+      const modalRect = modalElement.getBoundingClientRect();
+      const newWidth = e.clientX - modalRect.left;
+      setSidebarWidth(Math.max(150, Math.min(400, newWidth)));
+    };
+
+    const handleResizeEnd = () => {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+    };
+  }, []);
+
   const handleFileSelect = (index: number) => {
     if (index === currentFileIndex) return;
 
@@ -226,7 +262,7 @@ export const FileReviewModal: React.FC = () => {
         </div>
 
         <div className="file-review-modal-content">
-          <div className="file-review-modal-sidebar">
+          <div className="file-review-modal-sidebar" style={{ width: sidebarWidth }}>
             <FileReviewList
               changes={changes}
               currentIndex={currentFileIndex}
@@ -234,6 +270,10 @@ export const FileReviewModal: React.FC = () => {
               onSelect={handleFileSelect}
             />
           </div>
+          <div
+            className="file-review-modal-resize-handle"
+            onMouseDown={handleResizeStart}
+          />
 
           <div className="file-review-modal-editor">
             {isLoading && (

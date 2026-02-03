@@ -33,6 +33,15 @@ export function registerEventForwarders(mainWindow: BrowserWindow): void {
     createEventForwarder(mainWindow, Events.SESSION_UPDATED, 'session:updated')
   );
 
+  // Forward SESSION_CREATED as session:updated so frontend picks up restored sessions
+  eventSubscriptions.push(
+    eventBus.on(Events.SESSION_CREATED, (data: { session: unknown }) => {
+      if (!mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('session:updated', { session: data.session });
+      }
+    })
+  );
+
   eventSubscriptions.push(
     createEventForwarder(mainWindow, ProjectEvents.PROJECT_UPDATED, 'project:updated')
   );

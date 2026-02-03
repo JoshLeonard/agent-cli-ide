@@ -1,14 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '../stores/projectStore';
+import { useLayoutStore } from '../stores/layoutStore';
 import type { RecentProject } from '../../shared/types/ipc';
 
 export const WelcomeScreen: React.FC = () => {
   const setProject = useProjectStore((state) => state.setProject);
+  const { setLayout, loadWorktreeAgentPrefsFromBackend } = useLayoutStore();
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
 
   useEffect(() => {
     window.terminalIDE.project.getRecent().then(setRecentProjects);
   }, []);
+
+  // Restore layout and preferences after opening a project
+  const restoreProjectState = async () => {
+    await loadWorktreeAgentPrefsFromBackend();
+    const state = await window.terminalIDE.persistence.restore();
+    if (state) {
+      // IMPORTANT: Get sessions from backend first, so they're in the map
+      // before setLayout validates sessionIds
+      const backendSessions = await window.terminalIDE.session.list();
+      for (const session of backendSessions) {
+        useLayoutStore.getState().updateSession(session);
+      }
+      // Now set layout - sessionIds will be validated against populated map
+      if (state.layout) {
+        setLayout(state.layout);
+      }
+    }
+  };
 
   const handleOpenProject = async () => {
     const path = await window.terminalIDE.dialog.selectDirectory();
@@ -17,6 +37,7 @@ export const WelcomeScreen: React.FC = () => {
     const result = await window.terminalIDE.project.open(path);
     if (result.success && result.project) {
       setProject(result.project);
+      await restoreProjectState();
     } else {
       console.error('Failed to open project:', result.error);
     }
@@ -26,6 +47,7 @@ export const WelcomeScreen: React.FC = () => {
     const result = await window.terminalIDE.project.open(path);
     if (result.success && result.project) {
       setProject(result.project);
+      await restoreProjectState();
     } else {
       console.error('Failed to open project:', result.error);
     }
