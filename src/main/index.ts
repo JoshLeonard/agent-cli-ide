@@ -52,8 +52,12 @@ app.whenReady().then(async () => {
   // Initialize settings service
   await settingsService.initialize();
 
-  // NOTE: Session restoration is now per-project and happens when a project is opened
-  // See ProjectService.openProject() and project IPC handlers
+  // Auto-restore last project on startup (before window creation)
+  // This sets currentProject in ProjectService so the renderer can fetch it
+  const restoredProject = await projectService.restoreProject();
+  if (restoredProject) {
+    console.log(`Restored project: ${restoredProject.path}`);
+  }
 
   // Retry any pending worktree deletions from previous sessions
   const retried = await gitWorktreeManager.retryPendingDeletions();

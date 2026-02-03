@@ -211,6 +211,15 @@ const App: React.FC = () => {
         setProject(result.project);
         // Restore layout and preferences for the newly opened project
         await loadWorktreeAgentPrefsFromBackend();
+
+        // CRITICAL: Fetch sessions and add to store BEFORE setting layout
+        // This ensures setLayout validates sessionIds against a populated map
+        const backendSessions = await window.terminalIDE.session.list();
+        for (const session of backendSessions) {
+          updateSession(session);
+        }
+
+        // Now restore layout - sessionIds will be validated against populated map
         const state = await window.terminalIDE.persistence.restore();
         if (state?.layout) {
           setLayout(state.layout);

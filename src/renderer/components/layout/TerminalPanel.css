@@ -82,3 +82,24 @@
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* Session restoration loading state */
+.terminal-panel-restoring {
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 12px;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-color, #3c3c3c);
+  border-top-color: var(--accent-color, #0078d4);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

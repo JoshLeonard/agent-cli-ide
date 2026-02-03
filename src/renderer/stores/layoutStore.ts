@@ -44,6 +44,10 @@ interface LayoutStore {
   sessions: Map<string, SessionInfo>;
   agentStatuses: Map<string, AgentStatus>;
   worktreeAgentPrefs: Map<string, string>; // worktreePath → agentId
+  isRestoring: boolean; // True while sessions are being restored
+
+  // Restoration state
+  setIsRestoring: (value: boolean) => void;
 
   // Grid operations
   setGridDimensions: (rows: number, cols: number) => boolean;
@@ -104,6 +108,11 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   sessions: new Map(),
   agentStatuses: new Map(),
   worktreeAgentPrefs: new Map(), // Loaded from backend via loadWorktreeAgentPrefsFromBackend()
+  isRestoring: false,
+
+  setIsRestoring: (value: boolean) => {
+    set({ isRestoring: value });
+  },
 
   setGridDimensions: (rows: number, cols: number) => {
     const state = get();
