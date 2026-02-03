@@ -258,6 +258,14 @@ class DebugHttpServer {
         await this.handleEvaluate(req, res, debugSessionId);
         break;
 
+      case 'GET console':
+        await this.handleGetConsole(req, res, debugSessionId);
+        break;
+
+      case 'GET exceptions':
+        await this.handleGetExceptions(req, res, debugSessionId);
+        break;
+
       default:
         // Check for parameterized routes
         const scopesMatch = action.match(/^scopes\/(\d+)$/);
@@ -374,6 +382,43 @@ class DebugHttpServer {
 
     const result = await debuggerService.evaluate(sessionId, expression, frameId);
     this.sendJson(res, result.error ? 400 : 200, result);
+  }
+
+  private async handleGetConsole(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    sessionId: string
+  ): Promise<void> {
+    const url = new URL(req.url || '/', `http://127.0.0.1:${this.port}`);
+    const limit = parseInt(url.searchParams.get('limit') || '100');
+    const levelParam = url.searchParams.get('level');
+    const levels = levelParam
+      ? (levelParam.split(',') as ('error' | 'warn' | 'info' | 'log' | 'debug')[])
+      : undefined;
+
+    const messages = debuggerService.getConsoleMessages({
+      sessionIds: [sessionId],
+      levels,
+      limit,
+    });
+
+    this.sendJson(res, 200, { messages });
+  }
+
+  private async handleGetExceptions(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    sessionId: string
+  ): Promise<void> {
+    const url = new URL(req.url || '/', `http://127.0.0.1:${this.port}`);
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+
+    const exceptions = debuggerService.getExceptions({
+      sessionIds: [sessionId],
+      limit,
+    });
+
+    this.sendJson(res, 200, { exceptions });
   }
 
   // ===== Utility Methods =====

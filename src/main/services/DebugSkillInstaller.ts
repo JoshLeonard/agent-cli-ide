@@ -178,16 +178,37 @@ curl -X POST "$TERMINAL_IDE_DEBUG_API/session/$TERMINAL_IDE_DEBUG_SESSION/evalua
   -d '{"expression": "myVariable.toString()", "frameId": 0}'
 \`\`\`
 
+### Get Console Messages
+\`\`\`bash
+curl "$TERMINAL_IDE_DEBUG_API/session/$TERMINAL_IDE_DEBUG_SESSION/console" \\
+  -H "Authorization: Bearer $TERMINAL_IDE_DEBUG_TOKEN"
+
+# Filter by level (error, warn, info, log, debug) and limit results
+curl "$TERMINAL_IDE_DEBUG_API/session/$TERMINAL_IDE_DEBUG_SESSION/console?level=error,warn&limit=50" \\
+  -H "Authorization: Bearer $TERMINAL_IDE_DEBUG_TOKEN"
+\`\`\`
+
+### Get Exceptions
+\`\`\`bash
+curl "$TERMINAL_IDE_DEBUG_API/session/$TERMINAL_IDE_DEBUG_SESSION/exceptions" \\
+  -H "Authorization: Bearer $TERMINAL_IDE_DEBUG_TOKEN"
+
+# Limit results
+curl "$TERMINAL_IDE_DEBUG_API/session/$TERMINAL_IDE_DEBUG_SESSION/exceptions?limit=20" \\
+  -H "Authorization: Bearer $TERMINAL_IDE_DEBUG_TOKEN"
+\`\`\`
+
 ## Typical Debugging Workflow
 
 1. **Set breakpoints** at suspicious lines using the breakpoint endpoint
 2. **Run/continue** the program until it hits a breakpoint
-3. **Inspect the call stack** to understand the execution path
-4. **Get scopes** for the current frame to see available variables
-5. **Get variables** to inspect their values
-6. **Evaluate expressions** to test hypotheses about the bug
-7. **Step through code** (over/into/out) to trace execution
-8. **Continue or set more breakpoints** as needed
+3. **Check console messages and exceptions** for errors or diagnostic output
+4. **Inspect the call stack** to understand the execution path
+5. **Get scopes** for the current frame to see available variables
+6. **Get variables** to inspect their values
+7. **Evaluate expressions** to test hypotheses about the bug
+8. **Step through code** (over/into/out) to trace execution
+9. **Continue or set more breakpoints** as needed
 
 ## Response Formats
 
@@ -255,6 +276,41 @@ curl -X POST "$TERMINAL_IDE_DEBUG_API/session/$TERMINAL_IDE_DEBUG_SESSION/evalua
 {
   "result": "42",
   "type": "int"
+}
+\`\`\`
+
+### Console Messages Response
+\`\`\`json
+{
+  "messages": [
+    {
+      "id": "msg-123",
+      "sessionId": "session-456",
+      "level": "error",
+      "text": "TypeError: Cannot read property 'foo' of undefined",
+      "source": "/path/to/file.js",
+      "line": 42,
+      "timestamp": 1699999999999
+    }
+  ]
+}
+\`\`\`
+
+### Exceptions Response
+\`\`\`json
+{
+  "exceptions": [
+    {
+      "id": "exc-789",
+      "sessionId": "session-456",
+      "description": "TypeError: Cannot read property 'foo' of undefined",
+      "breakMode": "uncaught",
+      "details": {
+        "stackTrace": "at myFunction (/path/to/file.js:42:10)"
+      },
+      "timestamp": 1699999999999
+    }
+  ]
 }
 \`\`\`
 
