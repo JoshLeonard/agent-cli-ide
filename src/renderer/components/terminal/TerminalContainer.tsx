@@ -20,6 +20,8 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
   const sessionIdRef = useRef(sessionId);
+  const userScrolledUpRef = useRef(false);
+  const scrollListenerCleanupRef = useRef<(() => void) | null>(null);
 
   // Keep sessionId ref updated
   useEffect(() => {
@@ -68,6 +70,18 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+
+    // Track user scroll state to enable smart auto-scroll
+    const viewport = containerRef.current.querySelector('.xterm-viewport');
+    if (viewport) {
+      const handleScroll = () => {
+        const { scrollTop, scrollHeight, clientHeight } = viewport as HTMLElement;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px threshold
+        userScrolledUpRef.current = !atBottom;
+      };
+      viewport.addEventListener('scroll', handleScroll);
+      scrollListenerCleanupRef.current = () => viewport.removeEventListener('scroll', handleScroll);
+    }
 
     // Prevent native paste event (we handle it manually via Ctrl+V)
     const handlePaste = (e: ClipboardEvent) => {
@@ -119,6 +133,8 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
     const container = containerRef.current;
     return () => {
       container?.removeEventListener('paste', handlePaste);
+      scrollListenerCleanupRef.current?.();
+      scrollListenerCleanupRef.current = null;
       dataDisposable.dispose();
       resizeDisposable.dispose();
       terminal.dispose();
@@ -135,6 +151,10 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
       // Only write output for THIS session
       if (event.sessionId === currentSessionId && terminalRef.current) {
         terminalRef.current.write(event.data);
+        // Auto-scroll to bottom if user hasn't scrolled up
+        if (!userScrolledUpRef.current) {
+          terminalRef.current.scrollToBottom();
+        }
       }
     });
 
@@ -151,7 +171,12 @@ export const TerminalContainer: React.FC<TerminalContainerProps> = ({
 
     resizeTimeoutRef.current = window.setTimeout(() => {
       if (fitAddonRef.current && terminalRef.current) {
+        const wasAtBottom = !userScrolledUpRef.current;
         fitAddonRef.current.fit();
+        // Restore scroll position after fit
+        if (wasAtBottom) {
+          terminalRef.current.scrollToBottom();
+        }
       }
     }, 100);
   }, []);
