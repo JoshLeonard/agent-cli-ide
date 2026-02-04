@@ -8,6 +8,7 @@ import { processManager } from './services/ProcessManager';
 import { agentService } from './services/AgentService';
 import { projectService } from './services/ProjectService';
 import { settingsService } from './services/SettingsService';
+import { autoUpdaterService } from './services/AutoUpdater';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -43,6 +44,15 @@ async function createWindow(): Promise<void> {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Initialize auto-updater (only in production)
+  if (process.env.NODE_ENV !== 'development') {
+    autoUpdaterService.initialize(mainWindow);
+    // Check for updates after a short delay
+    setTimeout(() => {
+      autoUpdaterService.checkForUpdates();
+    }, 3000);
+  }
 }
 
 app.whenReady().then(async () => {

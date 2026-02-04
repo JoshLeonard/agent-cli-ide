@@ -38,6 +38,7 @@ Three-process Electron architecture:
   - `MessagingService.ts` - Inter-session messaging
   - `PersistenceService.ts` - State persistence
   - `EventBus.ts` - App-wide pub/sub
+  - `AutoUpdater.ts` - GitHub release auto-updates
 
 **Preload Process** (`src/preload/`)
 - Context isolation layer exposing safe APIs to renderer
@@ -74,3 +75,34 @@ Three-process Electron architecture:
 - Vite 5.0 for renderer bundling
 - xterm 5.5 + node-pty 1.0 for terminal emulation
 - Zustand 4.5 for state management
+- electron-builder 26.7 + electron-updater for packaging and auto-updates
+
+## Building & Releasing
+
+**Build Commands:**
+```bash
+npm run dist           # Build installer without publishing
+npm run release        # Build and publish to GitHub (requires GH_TOKEN)
+npm run pack           # Build unpacked app for testing
+```
+
+**Release output:** `C:/temp/terminal-ide-release/`
+- `Terminal IDE Setup X.X.X.exe` - Windows installer
+- `latest.yml` - Version manifest for auto-updater
+- `*.blockmap` - Delta update support
+
+**Publishing with gh CLI** (alternative to `npm run release`):
+```bash
+npm run dist
+gh release create vX.X.X --title "vX.X.X" \
+  "C:/temp/terminal-ide-release/Terminal IDE Setup X.X.X.exe" \
+  "C:/temp/terminal-ide-release/latest.yml" \
+  "C:/temp/terminal-ide-release/Terminal IDE Setup X.X.X.exe.blockmap"
+```
+
+**Auto-Update Flow:**
+- `AutoUpdater.ts` service checks GitHub releases on startup (production only)
+- Renderer can access via `window.terminalIDE.updater` API
+- Updates download manually, install on app quit
+
+**GitHub Config:** Releases hosted at `JoshLeonard/agent-cli-ide`

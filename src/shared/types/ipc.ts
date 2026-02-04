@@ -473,6 +473,24 @@ export interface IpcChannels {
     request: { repoPath: string };
     response: GitRemoteListResult;
   };
+
+  // Auto-updater
+  'updater:check': {
+    request: void;
+    response: { version: string; releaseDate: string } | null;
+  };
+  'updater:download': {
+    request: void;
+    response: boolean;
+  };
+  'updater:install': {
+    request: void;
+    response: boolean;
+  };
+  'updater:get-version': {
+    request: void;
+    response: string;
+  };
 }
 
 // Event channels (send/on)
@@ -539,6 +557,14 @@ export interface IpcEvents {
   // Git events
   'git:statusChanged': {
     repoPath: string;
+  };
+
+  // Updater events
+  'updater:status': {
+    status: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+    info?: { version: string; releaseDate: string };
+    progress?: number;
+    error?: string;
   };
 }
 

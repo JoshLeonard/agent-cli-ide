@@ -338,6 +338,23 @@ const api = {
     onBreakpointHit: createEventSubscriber('debug:breakpointHit'),
   },
 
+  // Auto-updater
+  updater: {
+    check: (): Promise<{ version: string; releaseDate: string } | null> =>
+      ipcRenderer.invoke('updater:check'),
+
+    download: (): Promise<boolean> =>
+      ipcRenderer.invoke('updater:download'),
+
+    install: (): Promise<boolean> =>
+      ipcRenderer.invoke('updater:install'),
+
+    getVersion: (): Promise<string> =>
+      ipcRenderer.invoke('updater:get-version'),
+
+    onStatus: createEventSubscriber('updater:status'),
+  },
+
   // Git Operations
   git: {
     // Status

@@ -14,21 +14,29 @@
     "start": "npm run build:all && electron .",
     "postinstall": "electron-rebuild -f -w node-pty",
     "pack": "npm run build:all && electron-builder --dir",
-    "dist": "npm run build:all && electron-builder"
+    "dist": "npm run build:all && electron-builder",
+    "release": "npm run build:all && electron-builder --publish always",
+    "release:draft": "npm run build:all && electron-builder --publish onTagOrDraft"
   },
   "build": {
     "appId": "com.joshuaLeonard.terminal-ide",
     "productName": "Terminal IDE",
     "directories": {
-      "output": "release"
+      "output": "C:/temp/terminal-ide-release"
     },
     "files": [
       "dist/**/*",
       "node_modules/**/*"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "JoshLeonard",
+      "repo": "agent-cli-ide"
+    },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": "dmg",
@@ -50,6 +58,7 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "chrome-remote-interface": "^0.33.3",
+    "electron-updater": "^6.7.3",
     "monaco-editor": "^0.45.0",
     "node-pty": "^1.0.0",
     "uuid": "^9.0.0",
