@@ -15,6 +15,8 @@ const BUILT_IN_AGENTS: AgentConfig[] = [
     command: 'claude',
     icon: '🤖',
     category: 'ai-agent',
+    quickChatCommand: '-p',
+    quickChatArgs: ['--model', 'haiku'],
   },
   {
     id: 'cursor',
@@ -23,6 +25,8 @@ const BUILT_IN_AGENTS: AgentConfig[] = [
     command: 'agent',
     icon: '⚡',
     category: 'ai-agent',
+    quickChatCommand: '-p',
+    quickChatArgs: ['--model', 'gemini-3-flash'],
   },
   {
     id: 'aider',
@@ -31,6 +35,7 @@ const BUILT_IN_AGENTS: AgentConfig[] = [
     command: 'aider',
     icon: '🔧',
     category: 'ai-agent',
+    quickChatCommand: '--message',
   },
   {
     id: 'powershell',

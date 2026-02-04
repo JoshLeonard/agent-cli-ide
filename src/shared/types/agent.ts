@@ -9,4 +9,6 @@ export interface AgentConfig {
   icon?: string;           // Emoji for UI
   category: AgentCategory;
   available?: boolean;     // Discovered at runtime
+  quickChatCommand?: string; // Flag for one-shot prompts (e.g., "-p" for claude)
+  quickChatArgs?: string[]; // Additional args for quick chat (e.g., ["--model", "haiku"])
 }

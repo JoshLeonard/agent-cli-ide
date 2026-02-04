@@ -34,6 +34,8 @@ import {
   unregisterDebugHandlers,
   registerGitHandlers,
   unregisterGitHandlers,
+  registerQuickChatHandlers,
+  unregisterQuickChatHandlers,
 } from './handlers/index';
 
 export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<void> {
@@ -58,6 +60,7 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<vo
   registerFileReviewHandlers();
   registerDebugHandlers();
   registerGitHandlers();
+  registerQuickChatHandlers(mainWindow);
 
   // Forward events from main process to renderer
   registerEventForwarders(mainWindow);
@@ -88,4 +91,5 @@ export function unregisterIpcHandlers(): void {
   unregisterFileReviewHandlers();
   unregisterDebugHandlers();
   unregisterGitHandlers();
+  unregisterQuickChatHandlers();
 }

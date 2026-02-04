@@ -37,6 +37,7 @@ import type {
   GitFetchResult,
   GitMergeResult,
 } from '../shared/types/git';
+import type { QuickChatRequest, QuickChatResponse } from '../shared/types/quickChat';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -475,6 +476,17 @@ const api = {
 
     // Events
     onStatusChanged: createEventSubscriber('git:statusChanged'),
+  },
+
+  // Quick Chat
+  quickChat: {
+    execute: (request: QuickChatRequest): Promise<QuickChatResponse> =>
+      ipcRenderer.invoke('quickchat:execute', request),
+
+    cancel: (): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('quickchat:cancel'),
+
+    onOutput: createEventSubscriber('quickchat:output'),
   },
 };
 

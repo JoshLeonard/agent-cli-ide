@@ -1,10 +1,12 @@
 import React from 'react';
 import { useProjectStore } from '../stores/projectStore';
 import { useGitStore } from '../stores/gitStore';
+import { useQuickChatStore } from '../stores/quickChatStore';
 
 export const StatusBar: React.FC = () => {
   const currentProject = useProjectStore((state) => state.currentProject);
   const { status, togglePanel } = useGitStore();
+  const openQuickChat = useQuickChatStore((state) => state.open);
 
   if (!currentProject) return null;
 
@@ -20,6 +22,13 @@ export const StatusBar: React.FC = () => {
         </span>
       </div>
       <div className="status-bar-right">
+        <button
+          className="status-bar-item status-bar-btn"
+          onClick={openQuickChat}
+          title="Quick Chat (Ctrl+Shift+Q)"
+        >
+          <span className="status-bar-icon">&#128172;</span>
+        </button>
         {currentProject.isGitRepo && currentProject.gitBranch && (
           <button
             className="status-bar-item status-bar-git-btn"

@@ -22,6 +22,7 @@ import {
 } from './hooks';
 import { FileReviewModal } from './components/review/FileReviewModal';
 import { GitPanel } from './components/git/GitPanel';
+import { QuickChatDialog } from './components/quickchat/QuickChatDialog';
 import type { SessionType } from '../shared/types/session';
 import './components/messaging/QuickSendDialog.css';
 
@@ -319,6 +320,7 @@ const App: React.FC = () => {
       />
       <FileReviewModal />
       <GitPanel />
+      <QuickChatDialog />
     </div>
   );
 };

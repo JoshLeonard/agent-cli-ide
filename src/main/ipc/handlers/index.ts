@@ -10,3 +10,4 @@ export { registerEventForwarders, unregisterEventForwarders } from './events';
 export { registerFileReviewHandlers, unregisterFileReviewHandlers } from './fileReview';
 export { registerDebugHandlers, unregisterDebugHandlers } from './debug';
 export { registerGitHandlers, unregisterGitHandlers } from './git';
+export { registerQuickChatHandlers, unregisterQuickChatHandlers } from './quickChat';

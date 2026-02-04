@@ -7,6 +7,7 @@ import type { AgentStatus } from './agentStatus';
 import type { ActivityEvent, ActivityFilter } from './activity';
 import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from './messaging';
 import type { Settings, PartialSettings } from './settings';
+import type { QuickChatRequest, QuickChatResponse, QuickChatOutputEvent } from './quickChat';
 import type {
   FileReviewRequest,
   FileReviewResult,
@@ -491,6 +492,12 @@ export interface IpcChannels {
     request: void;
     response: string;
   };
+
+  // Quick Chat
+  'quickchat:execute': {
+    request: QuickChatRequest;
+    response: QuickChatResponse;
+  };
 }
 
 // Event channels (send/on)
@@ -566,6 +573,9 @@ export interface IpcEvents {
     progress?: number;
     error?: string;
   };
+
+  // Quick Chat events
+  'quickchat:output': QuickChatOutputEvent;
 }
 
 export type IpcChannel = keyof IpcChannels;
