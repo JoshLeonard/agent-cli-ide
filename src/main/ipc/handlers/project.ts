@@ -56,8 +56,6 @@ export async function restoreProjectSessions(projectPath: string): Promise<numbe
     return 0;
   }
 
-  console.log(`Attempting to restore ${projectState.sessions.length} sessions for project: ${projectPath}`);
-
   let restoredCount = 0;
   for (const sessionInfo of projectState.sessions) {
     if (sessionInfo.status === 'terminated') {

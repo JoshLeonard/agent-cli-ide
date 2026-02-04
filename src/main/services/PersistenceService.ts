@@ -31,6 +31,7 @@ export class PersistenceService {
       projectPath: projectPath ?? existing?.projectPath,
       recentProjects: existing?.recentProjects,
       worktreeAgentPrefs: existing?.worktreeAgentPrefs,
+      projectStates: existing?.projectStates, // Preserve project-specific states
     };
 
     try {
@@ -118,6 +119,8 @@ export class PersistenceService {
       lastSaved: Date.now(),
       projectPath: existing?.projectPath,
       recentProjects,
+      worktreeAgentPrefs: existing?.worktreeAgentPrefs,
+      projectStates: existing?.projectStates, // Preserve project-specific states
     };
 
     try {

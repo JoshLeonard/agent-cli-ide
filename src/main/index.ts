@@ -60,7 +60,9 @@ app.whenReady().then(async () => {
     console.log(`Restored project: ${restoredProject.path}`);
     // Restore sessions for the project
     const sessionCount = await restoreProjectSessions(restoredProject.path);
-    console.log(`Restored ${sessionCount} sessions`);
+    if (sessionCount > 0) {
+      console.log(`Restored ${sessionCount} sessions`);
+    }
   }
 
   // Retry any pending worktree deletions from previous sessions

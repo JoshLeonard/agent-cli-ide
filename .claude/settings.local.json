@@ -55,7 +55,8 @@
       "Bash(git status:*)",
       "Bash(timeout:*)",
       "Bash(node:*)",
-      "Bash(npx playwright:*)"
+      "Bash(npx playwright:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

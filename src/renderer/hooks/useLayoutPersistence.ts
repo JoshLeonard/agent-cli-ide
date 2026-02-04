@@ -4,12 +4,22 @@ import { useLayoutStore } from '../stores/layoutStore';
 /**
  * Hook to handle periodic layout saves.
  * Debounces saves on panel changes and also saves periodically as a fallback.
+ * Skips saves while isRestoring is true to prevent overwriting persisted state.
  */
 export function useLayoutPersistence() {
-  const { panels, gridConfig, getLayout } = useLayoutStore();
+  const { panels, gridConfig, getLayout, isRestoring } = useLayoutStore();
 
   useEffect(() => {
+    // Don't save during restoration - we'd overwrite the persisted state
+    if (isRestoring) {
+      return;
+    }
+
     const saveLayout = () => {
+      // Double-check we're not restoring (in case state changed during debounce)
+      if (useLayoutStore.getState().isRestoring) {
+        return;
+      }
       const layout = getLayout();
       window.terminalIDE.layout.save(layout);
     };
@@ -31,5 +41,5 @@ export function useLayoutPersistence() {
       if (debounceTimer) clearTimeout(debounceTimer);
       clearInterval(interval);
     };
-  }, [panels, gridConfig, getLayout]);
+  }, [panels, gridConfig, getLayout, isRestoring]);
 }
