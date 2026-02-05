@@ -137,12 +137,19 @@
   border-radius: 4px;
   max-height: 300px;
   overflow-y: auto;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-primary);
-  white-space: pre-wrap;
+}
+
+.output-content.markdown-output {
+  white-space: normal;
   word-wrap: break-word;
+}
+
+.waiting-message {
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 /* Blinking cursor for running state */

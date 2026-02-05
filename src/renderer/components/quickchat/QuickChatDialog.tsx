@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuickChatStore } from '../../stores/quickChatStore';
 import { useProjectStore } from '../../stores/projectStore';
+import { MarkdownRenderer } from '../ui/MarkdownRenderer';
 import type { AgentConfig } from '../../../shared/types/agent';
 import './QuickChatDialog.css';
 
@@ -25,7 +26,7 @@ export const QuickChatDialog: React.FC = () => {
   const currentProject = useProjectStore((state) => state.currentProject);
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const outputRef = useRef<HTMLPreElement>(null);
+  const outputRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Load available AI agents with quickChatCommand support
@@ -202,10 +203,14 @@ export const QuickChatDialog: React.FC = () => {
           {(output || isRunning) && (
             <div className="output-section">
               <label>Response:</label>
-              <pre ref={outputRef} className="output-content">
-                {output || (isRunning ? 'Waiting for response...' : '')}
+              <div ref={outputRef} className="output-content markdown-output">
+                {output ? (
+                  <MarkdownRenderer content={output} />
+                ) : (
+                  isRunning && <span className="waiting-message">Waiting for response...</span>
+                )}
                 {isRunning && <span className="cursor-blink">|</span>}
-              </pre>
+              </div>
             </div>
           )}
 
