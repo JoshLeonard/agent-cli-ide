@@ -21,7 +21,7 @@ interface GhExecResult {
 /**
  * Execute gh CLI command
  */
-function execGh(cwd: string, args: string[]): Promise<GhExecResult> {
+function execGh(cwd: string, args: string[], stdin?: string): Promise<GhExecResult> {
   return new Promise((resolve) => {
     const proc = spawn('gh', args, { cwd, shell: process.platform === 'win32' });
     let stdout = '';
@@ -43,6 +43,12 @@ function execGh(cwd: string, args: string[]): Promise<GhExecResult> {
       stderr = error.message;
       resolve({ stdout, stderr, exitCode: 1 });
     });
+
+    // Write to stdin if provided
+    if (stdin) {
+      proc.stdin.write(stdin);
+      proc.stdin.end();
+    }
   });
 }
 
@@ -408,18 +414,17 @@ export class GitHubService {
         comments: reviewComments,
       };
 
-      // Submit via API
-      const result = await execGh(repoPath, [
-        'api',
-        `repos/${repoId.owner}/${repoId.repo}/pulls/${prNumber}/reviews`,
-        '-X', 'POST',
-        '-f', `event=${payload.event}`,
-        '-f', `body=${payload.body}`,
-        ...(reviewComments.length > 0
-          ? ['-f', `comments=${JSON.stringify(reviewComments)}`]
-          : []
-        ),
-      ]);
+      // Submit via API using stdin for the JSON payload
+      const result = await execGh(
+        repoPath,
+        [
+          'api',
+          `repos/${repoId.owner}/${repoId.repo}/pulls/${prNumber}/reviews`,
+          '-X', 'POST',
+          '--input', '-',
+        ],
+        JSON.stringify(payload)
+      );
 
       if (result.exitCode !== 0) {
         // Try alternative approach: submit each comment individually, then submit review
