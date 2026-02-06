@@ -56,7 +56,9 @@
       "Bash(timeout:*)",
       "Bash(node:*)",
       "Bash(npx playwright:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git worktree remove:*)",
+      "Bash(npx electron:*)"
     ]
   }
 }
