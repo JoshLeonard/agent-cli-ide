@@ -1,4 +1,5 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, ipcMain } from 'electron';
+import { logger } from '../services/Logger';
 import { agentStatusTracker } from '../services/AgentStatusTracker';
 import { activityFeedService } from '../services/ActivityFeedService';
 import { fileChangeDetectionService } from '../services/FileChangeDetectionService';
@@ -39,6 +40,24 @@ import {
   registerCodeReviewHandlers,
   unregisterCodeReviewHandlers,
 } from './handlers/index';
+
+/**
+ * Wrapper for ipcMain.handle that logs errors.
+ * Available for gradual adoption by individual handler files.
+ */
+export function safeHandle(
+  channel: string,
+  handler: (event: Electron.IpcMainInvokeEvent, ...args: unknown[]) => unknown
+): void {
+  ipcMain.handle(channel, async (event, ...args) => {
+    try {
+      return await handler(event, ...args);
+    } catch (error) {
+      logger.error(`IPC ${channel} failed:`, error);
+      throw error;
+    }
+  });
+}
 
 export async function registerIpcHandlers(mainWindow: BrowserWindow): Promise<void> {
   // Initialize services

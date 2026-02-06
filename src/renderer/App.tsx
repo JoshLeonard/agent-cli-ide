@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { GridLayout } from './components/layout/GridLayout';
 import { SessionSidebar } from './components/sidebar/SessionSidebar';
 import { NewSessionDialog } from './components/NewSessionDialog';
@@ -8,7 +9,7 @@ import { QuickSendDialog } from './components/messaging/QuickSendDialog';
 import { ToastContainer } from './components/ui/Toast';
 import { TitleBar } from './components/titlebar/TitleBar';
 import { SettingsDialog } from './components/settings/SettingsDialog';
-import { ConfirmDialog } from './components/ui/ConfirmDialog';
+import { WorktreeDropDialog } from './components/dialogs/WorktreeDropDialog';
 import { useLayoutStore } from './stores/layoutStore';
 import { useProjectStore } from './stores/projectStore';
 import { useMessagingStore } from './stores/messagingStore';
@@ -33,10 +34,11 @@ const App: React.FC = () => {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [pendingPanelId, setPendingPanelId] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [moveConfirmData, setMoveConfirmData] = useState<{
+  const [worktreeDropData, setWorktreeDropData] = useState<{
+    panelId: string;
     worktreePath: string;
-    sessionId: string;
-    targetPanelId: string;
+    worktreeBranch: string;
+    existingSessionId?: string;
   } | null>(null);
 
   const { currentProject, setProject } = useProjectStore();
@@ -55,7 +57,6 @@ const App: React.FC = () => {
     findPanelBySessionId,
     getActiveSessionCount,
     findFirstEmptyPanel,
-    getWorktreeAgent,
     setWorktreeAgent,
     findPanelByWorktreePath,
     moveSessionToPanel,
@@ -150,58 +151,51 @@ const App: React.FC = () => {
   const handleWorktreeDrop = async (panelId: string, worktreeData: { path: string; branch: string }) => {
     // Check if this worktree is already open in another panel
     const existingPanelId = findPanelByWorktreePath(worktreeData.path);
+    let existingSessionId: string | undefined;
 
     if (existingPanelId && existingPanelId !== panelId) {
       const existingPanel = panels.find(p => p.id === existingPanelId);
-      if (existingPanel?.sessionId) {
-        // Prompt to move existing session
-        setMoveConfirmData({
-          worktreePath: worktreeData.path,
-          sessionId: existingPanel.sessionId,
-          targetPanelId: panelId,
-        });
-        return;
-      }
+      existingSessionId = existingPanel?.sessionId || undefined;
     }
 
-    // Create new session (original logic)
-    const savedAgentId = getWorktreeAgent(worktreeData.path);
-    let agentId = savedAgentId;
+    // Always show the drop dialog with shell options
+    setWorktreeDropData({
+      panelId,
+      worktreePath: worktreeData.path,
+      worktreeBranch: worktreeData.branch,
+      existingSessionId,
+    });
+  };
 
-    // Fallback to default agent if no preference saved
-    if (!agentId) {
-      const defaultAgent = await window.terminalIDE.agent.getDefault();
-      agentId = defaultAgent?.id;
-    }
+  const handleWorktreeDropShell = async (agentId: string) => {
+    if (!worktreeDropData) return;
 
     const config = {
       type: 'attached' as const,
-      cwd: worktreeData.path,
+      cwd: worktreeDropData.worktreePath,
       agentId,
     };
 
     const result = await window.terminalIDE.session.create(config);
     if (result.success && result.session) {
-      // Save agent preference for this worktree
-      if (agentId) {
-        setWorktreeAgent(worktreeData.path, agentId);
-      }
-      setSessionForPanel(panelId, result.session.id);
+      setWorktreeAgent(worktreeDropData.worktreePath, agentId);
+      setSessionForPanel(worktreeDropData.panelId, result.session.id);
       updateSession(result.session);
     } else {
       console.error('Failed to create session from worktree drop:', result.error);
     }
+    setWorktreeDropData(null);
   };
 
-  const handleConfirmMoveSession = () => {
-    if (moveConfirmData) {
-      moveSessionToPanel(moveConfirmData.sessionId, moveConfirmData.targetPanelId);
+  const handleWorktreeDropMove = () => {
+    if (worktreeDropData?.existingSessionId) {
+      moveSessionToPanel(worktreeDropData.existingSessionId, worktreeDropData.panelId);
     }
-    setMoveConfirmData(null);
+    setWorktreeDropData(null);
   };
 
-  const handleCancelMoveSession = () => {
-    setMoveConfirmData(null);
+  const handleWorktreeDropCancel = () => {
+    setWorktreeDropData(null);
   };
 
   const activeSessionCount = getActiveSessionCount();
@@ -259,13 +253,16 @@ const App: React.FC = () => {
   // Show welcome screen if no project is open
   if (!currentProject) {
     return (
-      <div className="app">
-        <WelcomeScreen />
-      </div>
+      <ErrorBoundary>
+        <div className="app">
+          <WelcomeScreen />
+        </div>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary>
     <div className="app">
       <TitleBar
         gridConfig={gridConfig}
@@ -312,14 +309,14 @@ const App: React.FC = () => {
       <QuickSendDialog />
       <ToastContainer />
       <SettingsDialog isOpen={isSettingsOpen} onClose={() => setSettingsOpen(false)} />
-      <ConfirmDialog
-        isOpen={moveConfirmData !== null}
-        title="Move Session"
-        message="This worktree is already open in another panel. Move the session to this panel?"
-        confirmLabel="Move"
-        cancelLabel="Cancel"
-        onConfirm={handleConfirmMoveSession}
-        onCancel={handleCancelMoveSession}
+      <WorktreeDropDialog
+        isOpen={worktreeDropData !== null}
+        worktreePath={worktreeDropData?.worktreePath || ''}
+        worktreeBranch={worktreeDropData?.worktreeBranch || ''}
+        showMoveOption={!!worktreeDropData?.existingSessionId}
+        onSelectShell={handleWorktreeDropShell}
+        onMoveSession={handleWorktreeDropMove}
+        onCancel={handleWorktreeDropCancel}
       />
       <FileReviewModal />
       <GitPanel />
@@ -327,6 +324,7 @@ const App: React.FC = () => {
       <CodeReviewDialog />
       <ReviewSelectorDialog />
     </div>
+    </ErrorBoundary>
   );
 };
 

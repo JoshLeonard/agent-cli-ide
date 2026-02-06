@@ -9,6 +9,21 @@ import { agentService } from './services/AgentService';
 import { projectService } from './services/ProjectService';
 import { settingsService } from './services/SettingsService';
 import { autoUpdaterService } from './services/AutoUpdater';
+import { logger } from './services/Logger';
+import { healthMonitor } from './services/HealthMonitor';
+
+// Global crash handlers — must be registered before anything else
+process.on('uncaughtException', (error) => {
+  logger.error('UNCAUGHT EXCEPTION:', error);
+  logger.logMemory();
+  // Give the logger time to flush, then force quit
+  setTimeout(() => process.exit(1), 1000);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('UNHANDLED REJECTION:', reason);
+  logger.logMemory();
+});
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -56,9 +71,11 @@ async function createWindow(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  logger.info('App starting');
+
   // Initialize agent service and discover available agents
   await agentService.initialize();
-  console.log(`Discovered ${agentService.getAvailableAgents().length} available agents`);
+  logger.info(`Discovered ${agentService.getAvailableAgents().length} available agents`);
 
   // Initialize settings service
   await settingsService.initialize();
@@ -67,27 +84,31 @@ app.whenReady().then(async () => {
   // This sets currentProject in ProjectService so the renderer can fetch it
   const restoredProject = await projectService.restoreProject();
   if (restoredProject) {
-    console.log(`Restored project: ${restoredProject.path}`);
+    logger.info(`Restored project: ${restoredProject.path}`);
     // Restore sessions for the project
     const sessionCount = await restoreProjectSessions(restoredProject.path);
     if (sessionCount > 0) {
-      console.log(`Restored ${sessionCount} sessions`);
+      logger.info(`Restored ${sessionCount} sessions`);
     }
   }
 
   // Retry any pending worktree deletions from previous sessions
   const retried = await gitWorktreeManager.retryPendingDeletions();
   if (retried.length > 0) {
-    console.log(`Cleaned up ${retried.length} pending worktree deletions`);
+    logger.info(`Cleaned up ${retried.length} pending worktree deletions`);
   }
 
   // Clean up orphaned worktrees (only those with invalid git metadata)
   const cleaned = await gitWorktreeManager.cleanupOrphaned();
   if (cleaned.length > 0) {
-    console.log(`Cleaned up ${cleaned.length} orphaned worktrees`);
+    logger.info(`Cleaned up ${cleaned.length} orphaned worktrees`);
   }
 
   await createWindow();
+  logger.info('Window created');
+
+  // Start health monitoring
+  healthMonitor.start();
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -101,6 +122,9 @@ let isShuttingDown = false;
 function performShutdown(): void {
   if (isShuttingDown) return;
   isShuttingDown = true;
+
+  logger.info('App shutting down');
+  healthMonitor.stop();
 
   // Unregister IPC handlers first to stop event forwarding
   unregisterIpcHandlers();
