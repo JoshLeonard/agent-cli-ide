@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { AgentConfig } from '../../../shared/types/agent';
 import { useSettingsStore } from '../../stores/settingsStore';
 import './SettingsDialog.css';
 
@@ -11,13 +12,25 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const { settings, updateSettings, resetSettings } = useSettingsStore();
   const [defaultRows, setDefaultRows] = useState(settings.grid.defaultRows);
   const [defaultCols, setDefaultCols] = useState(settings.grid.defaultCols);
+  const [defaultAgentId, setDefaultAgentId] = useState<string | null>(settings.codeReview?.defaultAgentId ?? null);
+  const [aiAgents, setAiAgents] = useState<AgentConfig[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Load available AI agents when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      window.terminalIDE.agent.listAvailable().then((agents: AgentConfig[]) => {
+        setAiAgents(agents.filter((a: AgentConfig) => a.category === 'ai-agent' && a.quickChatCommand));
+      });
+    }
+  }, [isOpen]);
 
   // Sync local state when dialog opens or settings change
   useEffect(() => {
     if (isOpen) {
       setDefaultRows(settings.grid.defaultRows);
       setDefaultCols(settings.grid.defaultCols);
+      setDefaultAgentId(settings.codeReview?.defaultAgentId ?? null);
       setIsDirty(false);
     }
   }, [isOpen, settings]);
@@ -26,13 +39,15 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   useEffect(() => {
     const hasChanges =
       defaultRows !== settings.grid.defaultRows ||
-      defaultCols !== settings.grid.defaultCols;
+      defaultCols !== settings.grid.defaultCols ||
+      defaultAgentId !== (settings.codeReview?.defaultAgentId ?? null);
     setIsDirty(hasChanges);
-  }, [defaultRows, defaultCols, settings]);
+  }, [defaultRows, defaultCols, defaultAgentId, settings]);
 
   const handleSave = async () => {
     await updateSettings({
       grid: { defaultRows, defaultCols },
+      codeReview: { defaultAgentId },
     });
     onClose();
   };
@@ -115,6 +130,29 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <h3>Code Review</h3>
+            <p className="settings-description">
+              Choose the default AI agent for code reviews.
+            </p>
+
+            <div className="form-group">
+              <label htmlFor="defaultAgent">Default AI Agent</label>
+              <select
+                id="defaultAgent"
+                value={defaultAgentId || ''}
+                onChange={(e) => setDefaultAgentId(e.target.value || null)}
+              >
+                <option value="">Auto (first available)</option>
+                {aiAgents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.icon} {agent.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import { useCodeReviewStore } from '../../stores/codeReviewStore';
 import { useProjectStore } from '../../stores/projectStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { CodeReviewFileList } from './CodeReviewFileList';
 import { CodeReviewCommentPanel } from './CodeReviewCommentPanel';
 import type { ReviewDecision } from '../../../shared/types/codeReview';
+import type { AgentConfig } from '../../../shared/types/agent';
 import './CodeReviewDialog.css';
 
 export const CodeReviewDialog: React.FC = () => {
@@ -15,6 +17,10 @@ export const CodeReviewDialog: React.FC = () => {
   const isResizingLeft = useRef(false);
   const isResizingRight = useRef(false);
   const [showDecisionDropdown, setShowDecisionDropdown] = useState(false);
+  const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [aiAgents, setAiAgents] = useState<AgentConfig[]>([]);
+
+  const settings = useSettingsStore((s) => s.settings);
 
   const {
     isDialogOpen,
@@ -44,6 +50,27 @@ export const CodeReviewDialog: React.FC = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const isAIReviewing = review?.status === 'ai_reviewing';
+
+  // Load available AI agents
+  useEffect(() => {
+    if (isDialogOpen) {
+      window.terminalIDE.agent.listAvailable().then((agents: AgentConfig[]) => {
+        setAiAgents(agents.filter((a: AgentConfig) => a.category === 'ai-agent' && a.quickChatCommand));
+      });
+    }
+  }, [isDialogOpen]);
+
+  // Close agent dropdown on outside click
+  useEffect(() => {
+    if (!showAgentDropdown) return;
+    const handleClick = () => setShowAgentDropdown(false);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [showAgentDropdown]);
+
+  const defaultAgentId = settings.codeReview?.defaultAgentId;
+  const defaultAgent = aiAgents.find((a) => a.id === defaultAgentId) || aiAgents[0];
+  const defaultAgentLabel = defaultAgent ? `AI Review (${defaultAgent.name})` : 'AI Review';
 
   // Elapsed time timer for AI review
   useEffect(() => {
@@ -421,14 +448,42 @@ export const CodeReviewDialog: React.FC = () => {
               </button>
             ) : (
               <>
-                <button
-                  className="code-review-dialog-btn code-review-dialog-btn--ai"
-                  onClick={() => startAIReview()}
-                  disabled={isLoading}
-                  title="Have an AI agent review the code and generate comments"
-                >
-                  AI Review
-                </button>
+                <div className="code-review-ai-split-btn" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="code-review-dialog-btn code-review-dialog-btn--ai"
+                    onClick={() => startAIReview(defaultAgent?.id)}
+                    disabled={isLoading}
+                    title={`Review with ${defaultAgent?.name || 'AI agent'}`}
+                  >
+                    {defaultAgentLabel}
+                  </button>
+                  {aiAgents.length > 1 && (
+                    <button
+                      className="code-review-dialog-btn code-review-dialog-btn--ai code-review-ai-split-arrow"
+                      onClick={() => setShowAgentDropdown(!showAgentDropdown)}
+                      disabled={isLoading}
+                      title="Choose a different AI agent"
+                    >
+                      &#9662;
+                    </button>
+                  )}
+                  {showAgentDropdown && (
+                    <div className="code-review-agent-dropdown">
+                      {aiAgents.map((agent) => (
+                        <button
+                          key={agent.id}
+                          className={`code-review-agent-option ${agent.id === defaultAgent?.id ? 'selected' : ''}`}
+                          onClick={() => {
+                            setShowAgentDropdown(false);
+                            startAIReview(agent.id);
+                          }}
+                        >
+                          {agent.icon} {agent.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   className="code-review-dialog-btn code-review-dialog-btn--danger"
                   onClick={handleDiscard}

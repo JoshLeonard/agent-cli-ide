@@ -7,6 +7,8 @@ import { gitWorktreeManager } from '../../services/GitWorktreeManager';
 import { reviewFileWatcher } from '../../services/ReviewFileWatcher';
 import { generatePRReviewPrompt, generateLocalReviewPrompt } from '../../services/codeReviewPrompt';
 import { eventBus, Events } from '../../services/EventBus';
+import { agentService } from '../../services/AgentService';
+import { settingsService } from '../../services/SettingsService';
 import type { ChildProcess } from 'child_process';
 import type {
   StartReviewRequest,
@@ -227,9 +229,27 @@ export function registerCodeReviewHandlers(window: BrowserWindow): void {
           prompt = generateLocalReviewPrompt();
         }
 
-        // Spawn claude -p with full tool access — agent reads files for accurate line numbers
-        console.log(`[AIReview] Spawning claude -p, prompt length: ${prompt.length}`);
-        const proc = spawn('claude', ['-p', '--output-format', 'json'], {
+        // Resolve which agent to use: explicit > settings default > first available AI agent
+        const resolvedAgentId = agentId
+          || settingsService.get().codeReview?.defaultAgentId
+          || undefined;
+        const agent = resolvedAgentId
+          ? agentService.getAgent(resolvedAgentId)
+          : agentService.getAvailableAgents().find((a) => a.category === 'ai-agent' && a.quickChatCommand);
+
+        if (!agent || !agent.quickChatCommand) {
+          codeReviewService.setReviewStatus(reviewId, 'ready');
+          return { success: false, error: 'No AI agent with one-shot prompt support is available' };
+        }
+
+        // Build spawn args: quickChatCommand flag + any extra quickChatArgs + output format for claude
+        const spawnArgs = [agent.quickChatCommand, ...(agent.quickChatArgs || [])];
+        if (agent.command === 'claude') {
+          spawnArgs.push('--output-format', 'json');
+        }
+
+        console.log(`[AIReview] Spawning ${agent.command} ${spawnArgs.join(' ')}, prompt length: ${prompt.length}`);
+        const proc = spawn(agent.command, spawnArgs, {
           cwd: review.projectPath,
           shell: process.platform === 'win32',
           stdio: ['pipe', 'pipe', 'pipe'],

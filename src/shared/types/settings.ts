@@ -18,6 +18,9 @@ export interface Settings {
   };
   restoreSessionsOnStartup: boolean;
   quickCommands: QuickCommand[];
+  codeReview: {
+    defaultAgentId: string | null;
+  };
 }
 
 export const DEFAULT_QUICK_COMMANDS: QuickCommand[] = [
@@ -45,10 +48,14 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   restoreSessionsOnStartup: true,
   quickCommands: DEFAULT_QUICK_COMMANDS,
+  codeReview: {
+    defaultAgentId: null,
+  },
 };
 
 export type PartialSettings = {
   grid?: Partial<Settings['grid']>;
   restoreSessionsOnStartup?: boolean;
   quickCommands?: QuickCommand[];
+  codeReview?: Partial<Settings['codeReview']>;
 };

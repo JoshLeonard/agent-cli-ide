@@ -383,6 +383,61 @@
   background-color: #6e2424;
 }
 
+/* AI Review Split Button */
+.code-review-ai-split-btn {
+  display: inline-flex;
+  position: relative;
+}
+
+.code-review-ai-split-btn .code-review-dialog-btn--ai:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.code-review-ai-split-arrow {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.15) !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  min-width: 0 !important;
+}
+
+.code-review-agent-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  background-color: #2d2d2d;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 180px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.code-review-agent-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #cccccc;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.code-review-agent-option:hover {
+  background-color: #094771;
+  color: #ffffff;
+}
+
+.code-review-agent-option.selected {
+  background-color: #37373d;
+}
+
 /* File List */
 .code-review-file-list {
   display: flex;

@@ -56,6 +56,16 @@ export class SettingsService {
       };
     }
 
+    if (partial.codeReview) {
+      this.settings = {
+        ...this.settings,
+        codeReview: {
+          ...this.settings.codeReview,
+          ...partial.codeReview,
+        },
+      };
+    }
+
     // Save to disk
     await this.save();
 
@@ -91,6 +101,9 @@ export class SettingsService {
       },
       restoreSessionsOnStartup: loaded.restoreSessionsOnStartup ?? DEFAULT_SETTINGS.restoreSessionsOnStartup,
       quickCommands: loaded.quickCommands ?? DEFAULT_SETTINGS.quickCommands,
+      codeReview: {
+        defaultAgentId: loaded.codeReview?.defaultAgentId ?? DEFAULT_SETTINGS.codeReview.defaultAgentId,
+      },
     };
   }
 }

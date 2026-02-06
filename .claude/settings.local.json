@@ -58,7 +58,8 @@
       "Bash(npx playwright:*)",
       "Bash(git checkout:*)",
       "Bash(git worktree remove:*)",
-      "Bash(npx electron:*)"
+      "Bash(npx electron:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }
