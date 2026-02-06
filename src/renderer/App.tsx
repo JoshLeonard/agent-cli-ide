@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { GridLayout } from './components/layout/GridLayout';
 import { SessionSidebar } from './components/sidebar/SessionSidebar';
 import { NewSessionDialog } from './components/NewSessionDialog';
@@ -249,13 +250,16 @@ const App: React.FC = () => {
   // Show welcome screen if no project is open
   if (!currentProject) {
     return (
-      <div className="app">
-        <WelcomeScreen />
-      </div>
+      <ErrorBoundary>
+        <div className="app">
+          <WelcomeScreen />
+        </div>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary>
     <div className="app">
       <TitleBar
         gridConfig={gridConfig}
@@ -315,6 +319,7 @@ const App: React.FC = () => {
       <GitPanel />
       <QuickChatDialog />
     </div>
+    </ErrorBoundary>
   );
 };
 

@@ -2,6 +2,7 @@ import * as pty from 'node-pty';
 import * as os from 'os';
 import * as path from 'path';
 import type { AgentConfig } from '../../shared/types/agent';
+import { logger } from './Logger';
 
 export interface PtyProcess {
   pty: pty.IPty;
@@ -62,15 +63,22 @@ export class ProcessManager {
       }
     }
 
-    const ptyProcess = pty.spawn(shell, shellArgs, {
-      name: 'xterm-256color',
-      cols: options.cols || 80,
-      rows: options.rows || 24,
-      cwd: options.cwd,
-      env,
-    });
+    let ptyProcess: pty.IPty;
+    try {
+      ptyProcess = pty.spawn(shell, shellArgs, {
+        name: 'xterm-256color',
+        cols: options.cols || 80,
+        rows: options.rows || 24,
+        cwd: options.cwd,
+        env,
+      });
+    } catch (error) {
+      logger.error(`pty.spawn failed: shell=${shell}, cwd=${options.cwd}, agent=${options.agent?.id ?? 'none'}`, error);
+      throw error;
+    }
 
     this.processes.set(ptyProcess.pid, ptyProcess);
+    logger.info(`PTY spawned: pid=${ptyProcess.pid}, shell=${path.basename(shell)}, cwd=${options.cwd}`);
 
     // For AI agents, send the command to the shell after it starts
     if (options.agent && options.agent.category === 'ai-agent') {
@@ -128,6 +136,7 @@ export class ProcessManager {
   kill(pid: number): boolean {
     const proc = this.processes.get(pid);
     if (proc) {
+      logger.info(`Killing PTY pid=${pid}`);
       proc.kill();
       this.processes.delete(pid);
       return true;
@@ -139,7 +148,12 @@ export class ProcessManager {
     return this.processes.get(pid);
   }
 
+  getProcessCount(): number {
+    return this.processes.size;
+  }
+
   killAll(): void {
+    logger.info(`Killing all PTY processes (${this.processes.size} active)`);
     for (const [pid] of this.processes) {
       this.kill(pid);
     }
