@@ -21,6 +21,21 @@ Individual builds:
 
 Note: `node-pty` requires native rebuild via `electron-rebuild` (runs in postinstall).
 
+## Testing
+
+```bash
+npm test              # Run tests in watch mode
+npm test -- --run     # Run tests once (CI mode)
+npm run test:ui       # Run with UI dashboard
+npm run test:coverage # Generate coverage report
+```
+
+Test configurations:
+- `vitest.config.ts` - Main process tests (Node environment)
+- `vitest.config.renderer.ts` - Renderer tests (jsdom environment)
+
+See [TESTING.md](./TESTING.md) for detailed testing guidelines and best practices.
+
 ## Architecture
 
 Three-process Electron architecture:
