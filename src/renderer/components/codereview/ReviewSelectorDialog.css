@@ -1,0 +1,249 @@
+/* Review Selector Dialog */
+.review-selector-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.review-selector-dialog {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* Header */
+.review-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.review-selector-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #cccccc;
+}
+
+.review-selector-close {
+  background: none;
+  border: none;
+  color: #808080;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.review-selector-close:hover {
+  background-color: #3c3c3c;
+  color: #ffffff;
+}
+
+/* Tabs */
+.review-selector-tabs {
+  display: flex;
+  background-color: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.review-selector-tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #808080;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.review-selector-tab:hover {
+  color: #cccccc;
+}
+
+.review-selector-tab--active {
+  color: #cccccc;
+  border-bottom-color: #007fd4;
+}
+
+/* Content */
+.review-selector-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* Loading/Error/Empty states */
+.review-selector-loading,
+.review-selector-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #808080;
+  font-size: 13px;
+}
+
+.review-selector-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  background-color: #5a1d1d;
+  border-radius: 4px;
+  color: #f48771;
+  font-size: 13px;
+}
+
+.review-selector-error-icon {
+  font-size: 16px;
+}
+
+/* PR List */
+.review-selector-pr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-selector-pr-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background-color: #2d2d2d;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.review-selector-pr-item:hover {
+  background-color: #363636;
+  border-color: #3c3c3c;
+}
+
+.review-selector-pr-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-selector-pr-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-selector-pr-number {
+  font-weight: 600;
+  color: #569cd6;
+  font-size: 13px;
+}
+
+.review-selector-pr-title {
+  color: #cccccc;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.review-selector-pr-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #808080;
+}
+
+.review-selector-pr-author {
+  color: #808080;
+}
+
+.review-selector-pr-branch {
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.review-selector-pr-stats {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.review-selector-pr-additions {
+  color: #89d185;
+}
+
+.review-selector-pr-deletions {
+  color: #f14c4c;
+}
+
+.review-selector-pr-files {
+  color: #808080;
+}
+
+/* Local Changes */
+.review-selector-local {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.review-selector-local-info {
+  margin-bottom: 24px;
+}
+
+.review-selector-local-info p {
+  margin: 0 0 8px;
+  color: #cccccc;
+  font-size: 14px;
+}
+
+.review-selector-local-note {
+  color: #808080 !important;
+  font-size: 12px !important;
+}
+
+.review-selector-local-btn {
+  padding: 10px 24px;
+  background-color: #0e639c;
+  border: none;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.review-selector-local-btn:hover:not(:disabled) {
+  background-color: #1177bb;
+}
+
+.review-selector-local-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

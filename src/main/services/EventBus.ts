@@ -81,4 +81,12 @@ export const Events = {
   DEBUG_EXCEPTION: 'debug:exception',
   DEBUG_BREAKPOINT_HIT: 'debug:breakpointHit',
   DEBUG_VARIABLES_UPDATED: 'debug:variablesUpdated',
+
+  // Code Review events
+  CODE_REVIEW_STARTED: 'codeReview:started',
+  CODE_REVIEW_UPDATED: 'codeReview:updated',
+  CODE_REVIEW_SUBMITTED: 'codeReview:submitted',
+  CODE_REVIEW_DISCARDED: 'codeReview:discarded',
+  CODE_REVIEW_AI_STARTED: 'codeReview:aiStarted',
+  CODE_REVIEW_AI_COMPLETED: 'codeReview:aiCompleted',
 } as const;

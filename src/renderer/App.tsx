@@ -19,10 +19,12 @@ import {
   useLayoutPersistence,
   useProjectLoader,
   useFileReview,
+  useCodeReview,
 } from './hooks';
 import { FileReviewModal } from './components/review/FileReviewModal';
 import { GitPanel } from './components/git/GitPanel';
 import { QuickChatDialog } from './components/quickchat/QuickChatDialog';
+import { CodeReviewDialog, ReviewSelectorDialog } from './components/codereview';
 import type { SessionType } from '../shared/types/session';
 import './components/messaging/QuickSendDialog.css';
 
@@ -67,6 +69,7 @@ const App: React.FC = () => {
   useIpcSubscriptions();
   useLayoutPersistence();
   useFileReview();
+  useCodeReview();
   const { handlePasteSharedClipboard } = useKeyboardShortcuts({
     onOpenSettings: () => setSettingsOpen(true),
   });
@@ -321,6 +324,8 @@ const App: React.FC = () => {
       <FileReviewModal />
       <GitPanel />
       <QuickChatDialog />
+      <CodeReviewDialog />
+      <ReviewSelectorDialog />
     </div>
   );
 };

@@ -4,3 +4,4 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { useLayoutPersistence } from './useLayoutPersistence';
 export { useProjectLoader } from './useProjectLoader';
 export { useFileReview } from './useFileReview';
+export { useCodeReview } from './useCodeReview';

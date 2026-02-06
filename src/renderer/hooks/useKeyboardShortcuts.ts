@@ -3,6 +3,7 @@ import { useLayoutStore } from '../stores/layoutStore';
 import { useMessagingStore } from '../stores/messagingStore';
 import { useGitStore } from '../stores/gitStore';
 import { useQuickChatStore } from '../stores/quickChatStore';
+import { useCodeReviewStore } from '../stores/codeReviewStore';
 
 interface KeyboardShortcutsCallbacks {
   onOpenSettings: () => void;
@@ -17,6 +18,7 @@ export function useKeyboardShortcuts({ onOpenSettings }: KeyboardShortcutsCallba
   const { openQuickSend } = useMessagingStore();
   const { togglePanel: toggleGitPanel } = useGitStore();
   const { open: openQuickChat } = useQuickChatStore();
+  const { openSelector: openCodeReviewSelector } = useCodeReviewStore();
 
   // Paste from shared clipboard
   const handlePasteSharedClipboard = useCallback(async () => {
@@ -72,11 +74,16 @@ export function useKeyboardShortcuts({ onOpenSettings }: KeyboardShortcutsCallba
         e.preventDefault();
         openQuickChat();
       }
+      // Ctrl+Shift+R: Open Code Review Selector
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        openCodeReviewSelector();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openQuickSend, handlePasteSharedClipboard, onOpenSettings, toggleGitPanel, openQuickChat]);
+  }, [openQuickSend, handlePasteSharedClipboard, onOpenSettings, toggleGitPanel, openQuickChat, openCodeReviewSelector]);
 
   return { handlePasteSharedClipboard };
 }

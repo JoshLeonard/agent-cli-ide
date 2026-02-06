@@ -225,6 +225,11 @@ input:focus, select:focus {
   font-size: 11px;
 }
 
+.status-bar-icon-svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 /* Status bar buttons */
 .status-bar-btn,
 .status-bar-git-btn {

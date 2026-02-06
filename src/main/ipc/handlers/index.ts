@@ -11,3 +11,4 @@ export { registerFileReviewHandlers, unregisterFileReviewHandlers } from './file
 export { registerDebugHandlers, unregisterDebugHandlers } from './debug';
 export { registerGitHandlers, unregisterGitHandlers } from './git';
 export { registerQuickChatHandlers, unregisterQuickChatHandlers } from './quickChat';
+export { registerCodeReviewHandlers, unregisterCodeReviewHandlers } from './codeReview';

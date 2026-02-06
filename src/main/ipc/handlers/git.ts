@@ -1,4 +1,7 @@
 import { ipcMain } from 'electron';
+import { exec } from 'child_process';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { gitService } from '../../services/GitService';
 import type {
   GitStageRequest,
@@ -162,6 +165,37 @@ export function registerGitHandlers(): void {
   ipcMain.handle('git:remotes', async (_event, { repoPath }: { repoPath: string }) => {
     return gitService.getRemotes(repoPath);
   });
+
+  // Show file contents at a specific ref, or working copy if ref is empty
+  ipcMain.handle(
+    'git:showFile',
+    async (_event, { repoPath, ref, filePath }: { repoPath: string; ref: string; filePath: string }) => {
+      if (!ref) {
+        // Read the actual working copy file
+        try {
+          const fullPath = path.join(repoPath, filePath);
+          const content = await fs.readFile(fullPath, 'utf-8');
+          return { success: true, content };
+        } catch {
+          return { success: true, content: '' };
+        }
+      }
+      return new Promise<{ success: boolean; content?: string; error?: string }>((resolve) => {
+        exec(
+          `git show "${ref}:${filePath}"`,
+          { cwd: repoPath, maxBuffer: 5 * 1024 * 1024 },
+          (err, stdout) => {
+            if (err) {
+              // File might not exist in that ref (new file)
+              resolve({ success: true, content: '' });
+            } else {
+              resolve({ success: true, content: stdout });
+            }
+          }
+        );
+      });
+    }
+  );
 }
 
 export function unregisterGitHandlers(): void {
@@ -189,4 +223,5 @@ export function unregisterGitHandlers(): void {
   ipcMain.removeHandler('git:stashDrop');
   ipcMain.removeHandler('git:tags');
   ipcMain.removeHandler('git:remotes');
+  ipcMain.removeHandler('git:showFile');
 }

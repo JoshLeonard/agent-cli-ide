@@ -38,6 +38,21 @@ import type {
   GitMergeResult,
 } from '../shared/types/git';
 import type { QuickChatRequest, QuickChatResponse } from '../shared/types/quickChat';
+import type {
+  GitHubAuthResult,
+  GitHubPRListResult,
+  GitHubPRResult,
+  GitHubPRFilesResult,
+  GitHubPRDiffResult,
+  StartReviewRequest,
+  StartReviewResult,
+  AddCommentRequest,
+  UpdateCommentRequest,
+  CodeReviewResult,
+  GetReviewResult,
+  ListReviewsResult,
+  ReviewDecision,
+} from '../shared/types/codeReview';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -474,6 +489,10 @@ const api = {
     getRemotes: (repoPath: string): Promise<GitRemoteListResult> =>
       ipcRenderer.invoke('git:remotes', { repoPath }),
 
+    // Show file at ref
+    showFile: (repoPath: string, ref: string, filePath: string): Promise<{ success: boolean; content?: string }> =>
+      ipcRenderer.invoke('git:showFile', { repoPath, ref, filePath }),
+
     // Events
     onStatusChanged: createEventSubscriber('git:statusChanged'),
   },
@@ -487,6 +506,74 @@ const api = {
       ipcRenderer.invoke('quickchat:cancel'),
 
     onOutput: createEventSubscriber('quickchat:output'),
+  },
+
+  // GitHub
+  github: {
+    isAuthenticated: (repoPath: string): Promise<GitHubAuthResult> =>
+      ipcRenderer.invoke('github:isAuthenticated', { repoPath }),
+
+    listOpenPRs: (repoPath: string): Promise<GitHubPRListResult> =>
+      ipcRenderer.invoke('github:listOpenPRs', { repoPath }),
+
+    getPR: (repoPath: string, prNumber: number): Promise<GitHubPRResult> =>
+      ipcRenderer.invoke('github:getPR', { repoPath, prNumber }),
+
+    getPRFiles: (repoPath: string, prNumber: number): Promise<GitHubPRFilesResult> =>
+      ipcRenderer.invoke('github:getPRFiles', { repoPath, prNumber }),
+
+    getPRDiff: (repoPath: string, prNumber: number): Promise<GitHubPRDiffResult> =>
+      ipcRenderer.invoke('github:getPRDiff', { repoPath, prNumber }),
+  },
+
+  // Code Review
+  codeReview: {
+    start: (request: StartReviewRequest): Promise<StartReviewResult> =>
+      ipcRenderer.invoke('codeReview:start', request),
+
+    get: (reviewId: string): Promise<GetReviewResult> =>
+      ipcRenderer.invoke('codeReview:get', { reviewId }),
+
+    list: (projectPath?: string): Promise<ListReviewsResult> =>
+      ipcRenderer.invoke('codeReview:list', { projectPath }),
+
+    addComment: (request: AddCommentRequest): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:addComment', request),
+
+    updateComment: (request: UpdateCommentRequest): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:updateComment', request),
+
+    deleteComment: (reviewId: string, commentId: string): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:deleteComment', { reviewId, commentId }),
+
+    setDecision: (
+      reviewId: string,
+      decision: ReviewDecision,
+      overallComment?: string
+    ): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:setDecision', { reviewId, decision, overallComment }),
+
+    submit: (reviewId: string): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:submit', { reviewId }),
+
+    discard: (reviewId: string): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:discard', { reviewId }),
+
+    markFileViewed: (reviewId: string, filePath: string): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:markFileViewed', { reviewId, filePath }),
+
+    setFileIndex: (reviewId: string, index: number): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:setFileIndex', { reviewId, index }),
+
+    startAIReview: (reviewId: string, agentId?: string): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:startAIReview', { reviewId, agentId }),
+
+    cancelAIReview: (reviewId: string): Promise<CodeReviewResult> =>
+      ipcRenderer.invoke('codeReview:cancelAIReview', { reviewId }),
+
+    onUpdated: createEventSubscriber('codeReview:updated'),
+    onSubmitted: createEventSubscriber('codeReview:submitted'),
+    onAICompleted: createEventSubscriber('codeReview:aiCompleted'),
   },
 };
 

@@ -9,6 +9,23 @@ import type { InterSessionMessage, SharedClipboard, MessageSendOptions } from '.
 import type { Settings, PartialSettings } from './settings';
 import type { QuickChatRequest, QuickChatResponse, QuickChatOutputEvent } from './quickChat';
 import type {
+  GitHubAuthResult,
+  GitHubPRListResult,
+  GitHubPRResult,
+  GitHubPRFilesResult,
+  GitHubPRDiffResult,
+  GitHubSubmitReviewResult,
+  StartReviewRequest,
+  StartReviewResult,
+  AddCommentRequest,
+  UpdateCommentRequest,
+  CodeReviewResult,
+  GetReviewResult,
+  ListReviewsResult,
+  CodeReviewState,
+  ReviewDecision,
+} from './codeReview';
+import type {
   FileReviewRequest,
   FileReviewResult,
   FileSaveRequest,
@@ -498,6 +515,82 @@ export interface IpcChannels {
     request: QuickChatRequest;
     response: QuickChatResponse;
   };
+
+  // GitHub
+  'github:isAuthenticated': {
+    request: { repoPath: string };
+    response: GitHubAuthResult;
+  };
+  'github:listOpenPRs': {
+    request: { repoPath: string };
+    response: GitHubPRListResult;
+  };
+  'github:getPR': {
+    request: { repoPath: string; prNumber: number };
+    response: GitHubPRResult;
+  };
+  'github:getPRFiles': {
+    request: { repoPath: string; prNumber: number };
+    response: GitHubPRFilesResult;
+  };
+  'github:getPRDiff': {
+    request: { repoPath: string; prNumber: number };
+    response: GitHubPRDiffResult;
+  };
+
+  // Code Review
+  'codeReview:start': {
+    request: StartReviewRequest;
+    response: StartReviewResult;
+  };
+  'codeReview:get': {
+    request: { reviewId: string };
+    response: GetReviewResult;
+  };
+  'codeReview:list': {
+    request: { projectPath?: string };
+    response: ListReviewsResult;
+  };
+  'codeReview:addComment': {
+    request: AddCommentRequest;
+    response: CodeReviewResult;
+  };
+  'codeReview:updateComment': {
+    request: UpdateCommentRequest;
+    response: CodeReviewResult;
+  };
+  'codeReview:deleteComment': {
+    request: { reviewId: string; commentId: string };
+    response: CodeReviewResult;
+  };
+  'codeReview:setDecision': {
+    request: { reviewId: string; decision: ReviewDecision; overallComment?: string };
+    response: CodeReviewResult;
+  };
+  'codeReview:submit': {
+    request: { reviewId: string };
+    response: CodeReviewResult;
+  };
+  'codeReview:discard': {
+    request: { reviewId: string };
+    response: CodeReviewResult;
+  };
+  'codeReview:markFileViewed': {
+    request: { reviewId: string; filePath: string };
+    response: CodeReviewResult;
+  };
+  'codeReview:setFileIndex': {
+    request: { reviewId: string; index: number };
+    response: CodeReviewResult;
+  };
+  'codeReview:startAIReview': {
+    request: { reviewId: string; agentId?: string };
+    response: CodeReviewResult;
+  };
+  'codeReview:cancelAIReview': {
+    request: { reviewId: string };
+    response: CodeReviewResult;
+  };
 }
 
 // Event channels (send/on)
@@ -576,6 +669,19 @@ export interface IpcEvents {
 
   // Quick Chat events
   'quickchat:output': QuickChatOutputEvent;
+
+  // Code Review events
+  'codeReview:updated': {
+    review: CodeReviewState;
+  };
+  'codeReview:submitted': {
+    reviewId: string;
+  };
+  'codeReview:aiCompleted': {
+    reviewId: string;
+    success: boolean;
+    error?: string;
+  };
 }
 
 export type IpcChannel = keyof IpcChannels;
