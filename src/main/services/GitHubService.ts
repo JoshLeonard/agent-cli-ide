@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { logger } from './Logger';
 import type {
   GitHubPullRequest,
   GitHubPRFile,
@@ -399,12 +400,19 @@ export class GitHubService {
             commentBody += `\n\n\`\`\`suggestion\n${c.suggestion}\n\`\`\``;
           }
 
-          return {
+          // Build comment object with only defined fields
+          const comment: Record<string, string | number> = {
             path: c.filePath,
-            line: c.lineNumber,
-            side: c.side,
             body: commentBody,
+            line: c.lineNumber,
           };
+
+          // Only include side if it's explicitly set
+          if (c.side) {
+            comment.side = c.side;
+          }
+
+          return comment;
         });
 
       // Build the review payload
@@ -413,6 +421,9 @@ export class GitHubService {
         body: body || '',
         comments: reviewComments,
       };
+
+      logger.info(`[GitHubService] Submitting review for PR #${prNumber}, comments: ${reviewComments.length}`);
+      logger.debug(`[GitHubService] Payload: ${JSON.stringify(payload, null, 2)}`);
 
       // Submit via API using stdin for the JSON payload
       const result = await execGh(
@@ -426,7 +437,12 @@ export class GitHubService {
         JSON.stringify(payload)
       );
 
+      logger.info(`[GitHubService] gh exit code: ${result.exitCode}`);
+      if (result.stdout) logger.debug(`[GitHubService] gh stdout: ${result.stdout}`);
+      if (result.stderr) logger.error(`[GitHubService] gh stderr: ${result.stderr}`);
+
       if (result.exitCode !== 0) {
+        logger.warn(`[GitHubService] Primary submission failed, trying alternative approach`);
         // Try alternative approach: submit each comment individually, then submit review
         return this.submitReviewWithIndividualComments(
           repoPath,
@@ -464,33 +480,14 @@ export class GitHubService {
     repoId: { owner: string; repo: string }
   ): Promise<GitHubSubmitReviewResult> {
     try {
-      // First create the review
-      const createReviewResult = await execGh(repoPath, [
-        'api',
-        `repos/${repoId.owner}/${repoId.repo}/pulls/${prNumber}/reviews`,
-        '-X', 'POST',
-        '--input', '-',
-      ]);
-
-      // For now, use the simpler gh pr review command
-      const args = ['pr', 'review', String(prNumber)];
-
-      switch (decision) {
-        case 'APPROVE':
-          args.push('--approve');
-          break;
-        case 'REQUEST_CHANGES':
-          args.push('--request-changes');
-          break;
-        case 'COMMENT':
-          args.push('--comment');
-          break;
-      }
+      logger.info(`[GitHubService] Using alternative submission method for PR #${prNumber}`);
 
       // Build the review body with all comments
       let reviewBody = body || '';
 
       const activeComments = comments.filter(c => c.status !== 'ignored');
+      logger.info(`[GitHubService] Active comments: ${activeComments.length}`);
+
       if (activeComments.length > 0) {
         if (reviewBody) {
           reviewBody += '\n\n---\n\n';
@@ -507,11 +504,34 @@ export class GitHubService {
         }
       }
 
-      if (reviewBody) {
-        args.push('--body', reviewBody);
+      // Use gh pr review command with stdin for the body to avoid shell escaping issues
+      const args = ['pr', 'review', String(prNumber)];
+
+      switch (decision) {
+        case 'APPROVE':
+          args.push('--approve');
+          break;
+        case 'REQUEST_CHANGES':
+          args.push('--request-changes');
+          break;
+        case 'COMMENT':
+          args.push('--comment');
+          break;
       }
 
-      const result = await execGh(repoPath, args);
+      // Pass body via stdin to avoid shell escaping issues with special characters
+      if (reviewBody) {
+        args.push('--body-file', '-');
+      }
+
+      logger.info(`[GitHubService] Executing: gh ${args.join(' ')}`);
+      logger.debug(`[GitHubService] Body length: ${reviewBody.length}`);
+
+      const result = await execGh(repoPath, args, reviewBody || undefined);
+
+      logger.info(`[GitHubService] Alternative method exit code: ${result.exitCode}`);
+      if (result.stdout) logger.debug(`[GitHubService] stdout: ${result.stdout}`);
+      if (result.stderr) logger.error(`[GitHubService] stderr: ${result.stderr}`);
 
       if (result.exitCode !== 0) {
         return {
@@ -524,6 +544,7 @@ export class GitHubService {
         success: true,
       };
     } catch (error) {
+      logger.error(`[GitHubService] Alternative submission error:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error submitting review',
